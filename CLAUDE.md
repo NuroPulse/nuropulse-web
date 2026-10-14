@@ -258,17 +258,25 @@ app/
   routes.ts              # Route config
 ```
 
-Inside a module:
+Inside a module (one module = one feature area):
 
 ```
 modules/Patients/
-  components/            # Shared only within this module (e.g. tremor-status-badge.tsx)
-  features/
-    patient-list/        # patient-list-page.tsx, api.ts, types.ts
-    patient-detail/      # patient-detail-page.tsx, medication-section.tsx, tremor-section.tsx, api.ts, types.ts
+  components/            # every .tsx of the module: pages and their parts
+    patient-list-page.tsx
+    patient-detail-page.tsx
+    medication-section.tsx
+  api.ts                 # plain Supabase functions (no React), snake_case → camelCase mapping
+  hooks.ts               # TanStack Query hooks and query keys, built on api.ts
+  types.ts
+  index.ts               # public surface of the module
 ```
 
-- Module folders are **PascalCase**; every folder and file inside a module is **kebab-case**.
+- Module folders are **PascalCase**; every folder and file inside a module is **kebab-case**. Component names in code are PascalCase.
+- All `.tsx` files of a module live in its `components/` folder; `.ts` logic files live in the module root. No `features/` subfolder.
+- Each module has one `index.ts` that exports only its public surface: the pages that routes render and the types other modules need. Routes and other modules import from `~/modules/<Module>` only.
+- Files inside a module never import from their own module's `index.ts`; they use relative imports, to avoid circular imports.
+- Do not add barrel files anywhere else (`components/`, `lib/`).
 - Ask before creating a new module, a new top-level folder, or a new layer.
 
 ### Routes
@@ -298,7 +306,7 @@ All doctor routes sit under one layout route, `routes/app-layout.tsx`, which hol
 
 ### Imports
 
-Use the `~/` alias (maps to `app/`) for cross-folder imports, for example `~/components/ui/button`, and relative imports inside a module. Do not create barrel (`index.ts`) files unless the team decides to; ask first.
+Use the `~/` alias (maps to `app/`) for cross-folder imports and relative imports inside a module. Barrel files follow the module rules above.
 
 ---
 
@@ -400,7 +408,10 @@ The labels report what one measurement found; they never describe the patient's 
 | Landing: doctor sign-in helper | Khusus untuk dokter. Pasien menggunakan aplikasi NuroPulse. |
 | Landing: disclaimer | NuroPulse bukan alat diagnosis dan tidak menggantikan pemeriksaan dokter. |
 | Trend ranges | 7 Hari, 30 Hari, 3 Bulan |
+| Dashboard overview (page title, nav) | Dashboard |
+| Page not found (404) | Halaman tidak ditemukan |
 | Medicine library | Daftar Obat |
+| Medicine detail | Detail Obat |
 | Search medicine | Cari obat |
 | Add medicine | Tambah Obat |
 | Medication schedule | Jadwal Obat |
