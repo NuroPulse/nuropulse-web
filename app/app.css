@@ -1,15 +1,348 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/plus-jakarta-sans";
 
+/*
+ * NuroPulse design tokens.
+ * Source: Figma "NuroPulse Design System".
+ * Raw values live in :root; the @theme blocks expose them as Tailwind utilities.
+ * Light mode only: the design system has no dark mode yet.
+ */
+
+/* Typography: static values, so a plain @theme block. */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Heading, Bold (700): text-h1 ... text-h9 */
+  --text-h1: 60px;
+  --text-h1--line-height: 60px;
+  --text-h1--font-weight: 700;
+  --text-h2: 48px;
+  --text-h2--line-height: 48px;
+  --text-h2--font-weight: 700;
+  --text-h3: 36px;
+  --text-h3--line-height: 40px;
+  --text-h3--font-weight: 700;
+  --text-h4: 30px;
+  --text-h4--line-height: 36px;
+  --text-h4--font-weight: 700;
+  --text-h5: 24px;
+  --text-h5--line-height: 32px;
+  --text-h5--font-weight: 700;
+  --text-h6: 20px;
+  --text-h6--line-height: 28px;
+  --text-h6--font-weight: 700;
+  --text-h7: 16px;
+  --text-h7--line-height: 24px;
+  --text-h7--font-weight: 700;
+  --text-h8: 14px;
+  --text-h8--line-height: 20px;
+  --text-h8--font-weight: 700;
+  --text-h9: 12px;
+  --text-h9--line-height: 16px;
+  --text-h9--font-weight: 700;
+
+  /* Sub-heading, SemiBold (600): text-sh1 ... text-sh10 */
+  --text-sh1: 60px;
+  --text-sh1--line-height: 60px;
+  --text-sh1--font-weight: 600;
+  --text-sh2: 48px;
+  --text-sh2--line-height: 48px;
+  --text-sh2--font-weight: 600;
+  --text-sh3: 36px;
+  --text-sh3--line-height: 40px;
+  --text-sh3--font-weight: 600;
+  --text-sh4: 30px;
+  --text-sh4--line-height: 36px;
+  --text-sh4--font-weight: 600;
+  --text-sh5: 24px;
+  --text-sh5--line-height: 32px;
+  --text-sh5--font-weight: 600;
+  --text-sh6: 20px;
+  --text-sh6--line-height: 28px;
+  --text-sh6--font-weight: 600;
+  --text-sh7: 16px;
+  --text-sh7--line-height: 24px;
+  --text-sh7--font-weight: 600;
+  --text-sh8: 14px;
+  --text-sh8--line-height: 20px;
+  --text-sh8--font-weight: 600;
+  --text-sh9: 12px;
+  --text-sh9--line-height: 16px;
+  --text-sh9--font-weight: 600;
+  --text-sh10: 10px;
+  --text-sh10--line-height: 12px;
+  --text-sh10--font-weight: 600;
+
+  /* Body, Regular (400): text-b1 ... text-b10 */
+  --text-b1: 60px;
+  --text-b1--line-height: 60px;
+  --text-b1--font-weight: 400;
+  --text-b2: 48px;
+  --text-b2--line-height: 48px;
+  --text-b2--font-weight: 400;
+  --text-b3: 36px;
+  --text-b3--line-height: 40px;
+  --text-b3--font-weight: 400;
+  --text-b4: 30px;
+  --text-b4--line-height: 36px;
+  --text-b4--font-weight: 400;
+  --text-b5: 24px;
+  --text-b5--line-height: 32px;
+  --text-b5--font-weight: 400;
+  --text-b6: 20px;
+  --text-b6--line-height: 28px;
+  --text-b6--font-weight: 400;
+  --text-b7: 16px;
+  --text-b7--line-height: 24px;
+  --text-b7--font-weight: 400;
+  --text-b8: 14px;
+  --text-b8--line-height: 20px;
+  --text-b8--font-weight: 400;
+  --text-b9: 12px;
+  --text-b9--line-height: 16px;
+  --text-b9--font-weight: 400;
+  --text-b10: 10px;
+  --text-b10--line-height: 12px;
+  --text-b10--font-weight: 400;
+
+  /* "MAIN" trio from the Figma typography block: text-heading, text-subheading, text-body */
+  --text-heading: 26px;
+  --text-heading--line-height: 34px;
+  --text-heading--font-weight: 700;
+  --text-subheading: 20px;
+  --text-subheading--line-height: 30px;
+  --text-subheading--font-weight: 600;
+  --text-body: 18px;
+  --text-body--line-height: 28px;
+  --text-body--font-weight: 400;
+
+  /* Remove Tailwind's default neutral scale so only the Figma neutral keys exist. */
+  --color-neutral-*: initial;
 }
 
-html,
-body {
-  @apply bg-white dark:bg-gray-950;
+/* Colors, radius, shadow: values point at :root variables, so @theme inline. */
+@theme inline {
+  /* Brand: Nila (primary) */
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+  /* Brand: Hijau daun (secondary) */
+  --color-secondary-50: var(--secondary-50);
+  --color-secondary-100: var(--secondary-100);
+  --color-secondary-200: var(--secondary-200);
+  --color-secondary-300: var(--secondary-300);
+  --color-secondary-400: var(--secondary-400);
+  --color-secondary-500: var(--secondary-500);
+  --color-secondary-600: var(--secondary-600);
+  --color-secondary-700: var(--secondary-700);
+  --color-secondary-800: var(--secondary-800);
+  --color-secondary-900: var(--secondary-900);
+
+  /* Neutral */
+  --color-neutral-10: var(--neutral-10);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-1000: var(--neutral-1000);
+
+  /* Semantic tokens from Figma ("Semantik dan status risiko") */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  /* shadcn/ui tokens (mapped onto the Figma tokens in :root) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-card: var(--radius-card);
+
+  --shadow-card: var(--shadow-card);
+
+  --font-heading: var(--font-sans);
+
+
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  --radius-3xl: calc(var(--radius) * 2.2);
+
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Nila (primary) */
+  --primary-50: #f1f5fe;
+  --primary-100: #e1e9fe;
+  --primary-200: #c3d4fd;
+  --primary-300: #9cb5f8;
+  --primary-400: #6e8ff1;
+  --primary-500: #4a6ce0;
+  --primary-600: #3653c5;
+  --primary-700: #2941a3;
+  --primary-800: #1e327d;
+  --primary-900: #142359;
+
+  /* Hijau daun (secondary) */
+  --secondary-50: #ebfcef;
+  --secondary-100: #d5f7dd;
+  --secondary-200: #aeecbe;
+  --secondary-300: #7fdc9a;
+  --secondary-400: #50c277;
+  --secondary-500: #29a259;
+  --secondary-600: #158445;
+  --secondary-700: #0e6936;
+  --secondary-800: #104f29;
+  --secondary-900: #0a371b;
+
+  /* Neutral (neutral-10 is #080807 at 10% opacity) */
+  --neutral-10: #0808071a;
+  --neutral-100: #f6f7f2;
+  --neutral-200: #bdbdbd;
+  --neutral-300: #adadad;
+  --neutral-400: #878787;
+  --neutral-500: #757776;
+  --neutral-600: #575757;
+  --neutral-700: #424242;
+  --neutral-800: #2f2f2f;
+  --neutral-900: #212121;
+  --neutral-1000: #080807;
+
+  /* Semantic */
+  --surface: #f6f7fb;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eceef5;
+  --ink: #141a2e;
+  --ink-muted: #4a5168;
+  --line: #d3d7e3;
+  --line-strong: #6c7489;
+  --success: #0a6380;
+  --success-soft: #e0f1f7;
+  --warning: #735c00;
+  --warning-soft: #fff5c2;
+  --danger: #b3261e;
+  --danger-soft: #fce6e4;
+
+  /* shadcn/ui mapping */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--primary-600);
+  --primary-foreground: #ffffff;
+  --secondary: var(--secondary-100);
+  --secondary-foreground: var(--secondary-800);
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--primary-50);
+  --accent-foreground: var(--primary-800);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  /* line-strong, not line: input borders need 3:1 contrast against the surface */
+  --input: var(--line-strong);
+  --ring: var(--primary-600);
+
+  /* Chart series (shadcn/ui charts) */
+  --chart-1: var(--primary-600);
+  --chart-2: var(--secondary-500);
+  --chart-3: var(--primary-300);
+  --chart-4: var(--secondary-300);
+  --chart-5: var(--neutral-500);
+
+  /* Sidebar (shadcn/ui sidebar component) */
+  --sidebar: var(--surface-raised);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--primary-600);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--primary-50);
+  --sidebar-accent-foreground: var(--primary-800);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--primary-600);
+
+  /* Not defined in Figma yet; values carried over from the reference app.css */
+  --radius: 8px;
+  --radius-card: 8px;
+  --shadow-card: 0 8px 24px rgb(20 26 46 / 0.08);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    @apply font-sans bg-background text-foreground;
   }
 }
