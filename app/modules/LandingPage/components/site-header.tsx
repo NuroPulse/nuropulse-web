@@ -9,7 +9,7 @@ const navLinks = [
 export function SiteHeader() {
   return (
     <header className="border-b border-line bg-surface-raised">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 py-4 sm:px-8">
+      <div className="mx-auto flex flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 py-4 sm:px-8 xl:pl-30">
         <Link
           to="/"
           className="flex items-center gap-2.5 rounded-lg text-primary-600 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
