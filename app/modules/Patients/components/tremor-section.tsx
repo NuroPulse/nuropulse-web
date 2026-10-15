@@ -1,0 +1,232 @@
+import { ChartLine, Info, Smartphone } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { TablePagination } from "~/components/elements/table-pagination";
+import { TremorStatusBadge } from "~/components/elements/tremor-status-badge";
+import { formatDateOnly, formatDateTime } from "~/lib/date";
+import { formatDecimal } from "~/lib/number";
+import { toLocalDateKey } from "~/lib/medication";
+import { cn } from "~/lib/utils";
+import type { Measurement } from "../types";
+
+const HISTORY_PAGE_SIZE = 10;
+
+type TrendRange = "7d" | "30d" | "3m";
+
+const trendRanges: { value: TrendRange; label: string; days: number }[] = [
+  { value: "7d", label: "7 Hari", days: 7 },
+  { value: "30d", label: "30 Hari", days: 30 },
+  { value: "3m", label: "3 Bulan", days: 90 },
+];
+
+type TremorSectionProps = {
+  // Newest first.
+  measurements: Measurement[];
+  now: Date;
+};
+
+export function TremorSection({ measurements, now }: TremorSectionProps) {
+  const [range, setRange] = useState<TrendRange>("30d");
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const latest = measurements[0];
+  const rangeDays = trendRanges.find((option) => option.value === range)?.days ?? 30;
+  const inRange = useMemo(() => {
+    const from = now.getTime() - rangeDays * 24 * 60 * 60 * 1000;
+    return measurements.filter((measurement) => new Date(measurement.measuredAt).getTime() >= from);
+  }, [measurements, now, rangeDays]);
+
+  // Amplitude is only comparable on the same phone model, so model changes are called out
+  // (CLAUDE.md Section 2). Walk oldest → newest and note each switch.
+  const modelChanges = useMemo(() => {
+    const changes: { model: string; measuredAt: string }[] = [];
+    const oldestFirst = [...inRange].reverse();
+    oldestFirst.forEach((measurement, index) => {
+      const previous = oldestFirst[index - 1];
+      if (previous && previous.device.model !== measurement.device.model) {
+        changes.push({ model: measurement.device.model, measuredAt: measurement.measuredAt });
+      }
+    });
+    return changes;
+  }, [inRange]);
+
+  const historyRows = measurements.slice(
+    (historyPage - 1) * HISTORY_PAGE_SIZE,
+    historyPage * HISTORY_PAGE_SIZE,
+  );
+
+  return (
+    <section id="tes-tremor" aria-labelledby="tes-tremor-title" className="scroll-mt-6">
+      <h2 id="tes-tremor-title" className="sr-only">
+        Tes Tremor
+      </h2>
+
+      {/* Cannot be dismissed until the team says the thresholds are calibrated. */}
+      <div
+        role="note"
+        className="flex items-start gap-3 rounded-2xl border border-success bg-success-soft p-4"
+      >
+        <Info aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success" />
+        <div>
+          <p className="text-sh8 text-ink">Ambang belum dikalibrasi</p>
+          <p className="text-b9 text-ink-muted">
+            Status pola tremor memakai ambang awal yang belum divalidasi. Gunakan sebagai penanda,
+            bukan kesimpulan klinis.
+          </p>
+        </div>
+      </div>
+
+      {!latest ? (
+        <div className="mt-4 rounded-2xl border border-line bg-surface-raised p-6">
+          <p className="text-sh7 text-ink">Pengukuran terakhir</p>
+          <p className="mt-2 text-b8 text-ink-muted">Belum ada pengukuran.</p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 rounded-2xl border border-line bg-surface-raised p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sh7 text-ink">Pengukuran terakhir</p>
+                <p className="text-b9 text-ink-muted">
+                  {formatDateTime(latest.measuredAt)} · Tremor saat istirahat · algoritma{" "}
+                  {latest.algoVersion}
+                </p>
+              </div>
+              <TremorStatusBadge status={latest.status} />
+            </div>
+            <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                { label: "Frekuensi puncak", value: formatDecimal(latest.features.peakFrequencyHz, 1), unit: "Hz" },
+                { label: "Amplitudo pita (RMS)", value: formatDecimal(latest.features.bandRmsG, 3), unit: "g" },
+                { label: "Rasio daya pita", value: formatDecimal(latest.features.bandPowerRatio, 2) },
+                { label: "Konsistensi", value: formatDecimal(latest.features.consistency, 2) },
+                { label: "Durasi", value: String(latest.durationS), unit: "detik" },
+              ].map((metric) => (
+                <div key={metric.label}>
+                  <dt className="text-b9 text-ink-muted">{metric.label}</dt>
+                  <dd className="mt-1 text-h5 text-ink">
+                    {metric.value}
+                    {metric.unit && <span className="ml-1 text-b8 text-ink-muted">{metric.unit}</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-line bg-surface-raised p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sh7 text-ink">Tren frekuensi puncak</p>
+                <p className="text-b9 text-ink-muted">
+                  Setiap titik adalah satu pengukuran. Strip di bawah menunjukkan dosis obat harian.
+                </p>
+              </div>
+              <div role="group" aria-label="Rentang waktu" className="flex rounded-lg bg-surface-sunken p-1">
+                {trendRanges.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={range === option.value}
+                    onClick={() => setRange(option.value)}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-sh9 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+                      range === option.value
+                        ? "bg-surface-raised text-primary-600 shadow-card"
+                        : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* TODO(backend team): render the peak-frequency trend chart here (shadcn chart /
+                Recharts): points for `inRange` (filled = status "tremor", hollow = "none"),
+                the 3.5–7 Hz band as a reference area, a dashed marker at each entry of
+                `modelChanges`, and the daily dose strip below the time axis. */}
+            <div className="mt-5 flex min-h-56 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-surface px-4 py-10 text-center">
+              <ChartLine aria-hidden="true" className="size-8 text-primary-300" />
+              <p className="text-sh8 text-ink">Grafik tren akan ditampilkan di sini.</p>
+              <p className="text-b9 text-ink-muted">
+                {inRange.length} pengukuran dalam rentang ini · pita tremor 3,5–7 Hz sebagai acuan
+              </p>
+            </div>
+
+            {modelChanges.map((change) => (
+              <p
+                key={change.measuredAt}
+                className="mt-3 flex items-center gap-2 text-b9 text-ink-muted"
+              >
+                <Smartphone aria-hidden="true" className="size-4 shrink-0 text-primary-600" />
+                Ganti ponsel: {change.model} sejak {formatDateOnly(toLocalDateKey(new Date(change.measuredAt)))}.
+                Amplitudo hanya sebanding pada model ponsel yang sama.
+              </p>
+            ))}
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface-raised">
+            <div className="p-6 pb-4">
+              <p className="text-sh7 text-ink">Riwayat pengukuran</p>
+              <p className="text-b9 text-ink-muted">Diurutkan berdasarkan waktu pengukuran</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-3xl text-left">
+                <thead className="bg-surface">
+                  <tr>
+                    {["Waktu pengukuran", "Status", "Frekuensi puncak", "Amplitudo (RMS)", "Durasi", "Ponsel", "Algoritma"].map(
+                      (column) => (
+                        <th
+                          key={column}
+                          scope="col"
+                          className="px-4 py-3 text-sh9 whitespace-nowrap text-ink-muted"
+                        >
+                          {column}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {historyRows.map((measurement) => (
+                    <tr key={measurement.id}>
+                      <td className="px-4 py-3 text-sh9 whitespace-nowrap text-ink">
+                        {formatDateTime(measurement.measuredAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <TremorStatusBadge status={measurement.status} />
+                      </td>
+                      <td className="px-4 py-3 text-b9 whitespace-nowrap text-ink-muted">
+                        {formatDecimal(measurement.features.peakFrequencyHz, 1)} Hz
+                      </td>
+                      <td className="px-4 py-3 text-b9 whitespace-nowrap text-ink-muted">
+                        {formatDecimal(measurement.features.bandRmsG, 3)} g
+                      </td>
+                      <td className="px-4 py-3 text-b9 whitespace-nowrap text-ink-muted">
+                        {measurement.durationS} dtk
+                      </td>
+                      <td className="px-4 py-3 text-b9 whitespace-nowrap text-ink-muted">
+                        {measurement.device.model}
+                      </td>
+                      <td className="px-4 py-3 text-b9 whitespace-nowrap text-ink-muted">
+                        {measurement.algoVersion}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination
+              page={historyPage}
+              pageSize={HISTORY_PAGE_SIZE}
+              total={measurements.length}
+              itemLabel="pengukuran"
+              label="Halaman riwayat pengukuran"
+              onPageChange={setHistoryPage}
+            />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
