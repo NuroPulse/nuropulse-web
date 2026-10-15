@@ -3,6 +3,9 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/plus-jakarta-sans";
 
+/* Light mode only  */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * NuroPulse design tokens.
  * Source: Figma "NuroPulse Design System".

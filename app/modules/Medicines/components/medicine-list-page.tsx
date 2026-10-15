@@ -80,7 +80,11 @@ export function MedicineListPage() {
             <thead className="bg-surface">
               <tr>
                 {columns.map((column) => (
-                  <th key={column} scope="col" className="px-4 py-3 text-b9 text-ink-muted">
+                  <th
+                    key={column}
+                    scope="col"
+                    className="px-4 py-3 text-sh9 whitespace-nowrap text-ink-muted"
+                  >
                     {column}
                   </th>
                 ))}
@@ -97,22 +101,22 @@ export function MedicineListPage() {
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary-50 text-secondary-600">
                         <Pill aria-hidden="true" className="size-4" />
                       </span>
-                      <span className="text-sh8 text-ink">{medicine.name}</span>
+                      <span className="text-sh9 text-ink">{medicine.name}</span>
                     </div>
                   </td>
-                  <td className="max-w-60 px-4 py-3 text-b8 text-ink-muted">
+                  <td className="max-w-60 px-4 py-3 text-b9 text-ink-muted">
                     <span className="line-clamp-2">{medicine.commonDosage}</span>
                   </td>
-                  <td className="max-w-72 px-4 py-3 text-b8 text-ink-muted">
+                  <td className="max-w-72 px-4 py-3 text-b9 text-ink-muted">
                     <span className="line-clamp-2">{medicine.notes ?? "—"}</span>
                   </td>
-                  <td className="px-4 py-3 text-b8 text-ink-muted">
+                  <td className="px-4 py-3 text-b9 text-ink-muted">
                     {medicine.createdByName ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       to={`/medicines/${medicine.id}`}
-                      className="inline-flex items-center gap-1 rounded-lg text-sh8 whitespace-nowrap text-primary-600 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                      className="inline-flex items-center gap-1 rounded-lg text-sh9 whitespace-nowrap text-primary-600 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                     >
                       Lihat Detail
                       <ChevronRight aria-hidden="true" className="size-4" />
@@ -191,29 +195,28 @@ export function MedicineListPage() {
         {addButton}
       </div>
 
+      <label className="relative mt-6 block w-full">
+        <span className="sr-only">Cari obat</span>
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
+        />
+        <Input
+          type="search"
+          placeholder="Cari obat"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+          className="h-9 bg-surface-raised pl-9 text-b8 md:text-b8"
+        />
+      </label>
+
       <section
         aria-label="Daftar Obat"
-        className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface-raised"
+        className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface-raised"
       >
-        <div className="p-4">
-          <label className="relative block max-w-sm">
-            <span className="sr-only">Cari obat</span>
-            <Search
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2 text-ink-muted"
-            />
-            <Input
-              type="search"
-              placeholder="Cari obat"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              className="h-11 pl-10 text-b8 md:text-b8"
-            />
-          </label>
-        </div>
         {body}
       </section>
 
