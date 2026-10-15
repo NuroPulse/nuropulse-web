@@ -93,3 +93,8 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     connectionCode: data.connection_code,
   };
 }
+
+export async function hasActiveSession(): Promise<boolean> {
+  const { data } = await supabase.auth.getSession();
+  return data.session !== null;
+}
