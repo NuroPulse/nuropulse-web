@@ -21,6 +21,16 @@ export type Profile = {
   // Plain text in the database; only "doctor" may use this dashboard.
   role: string;
   fullName: string;
+  // UTC timestamp; shown as the join date on the Profile page.
+  createdAt: string;
+  // Doctors only; null would mean the backend did not generate one.
+  connectionCode: string | null;
+};
+
+// The signed-in doctor: their profile plus the login email, which lives in Supabase Auth.
+export type CurrentAccount = {
+  email: string | null;
+  profile: Profile;
 };
 
 export type AuthErrorCode =

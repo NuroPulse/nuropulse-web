@@ -579,6 +579,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          phone: string
           role: string
         }
         Insert: {
@@ -589,6 +590,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          phone: string
           role: string
         }
         Update: {
@@ -599,6 +601,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          phone?: string
           role?: string
         }
         Relationships: [

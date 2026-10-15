@@ -80,10 +80,16 @@ export async function getSession(): Promise<Session | null> {
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, role, full_name")
+    .select("id, role, full_name, created_at, connection_code")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw toAuthFailure(error);
   if (!data) return null;
-  return { id: data.id, role: data.role, fullName: data.full_name };
+  return {
+    id: data.id,
+    role: data.role,
+    fullName: data.full_name,
+    createdAt: data.created_at,
+    connectionCode: data.connection_code,
+  };
 }
