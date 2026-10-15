@@ -1,8 +1,9 @@
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-
+import { Button } from "~/components/ui/button"
 import { Bubble } from "~/components/elements/bubble";
+import { ArrowLeft } from "lucide-react"
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -11,6 +12,12 @@ type AuthLayoutProps = {
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <main className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-surface px-4 py-10 text-foreground sm:px-8">
+      <Button asChild variant="link" className="text-h7 absolute">
+        <Link to="/">
+          <ArrowLeft aria-hidden="true" className="size-4.5" />
+          Kembali
+        </Link>
+      </Button>
       {/* Left Bubble */}
       <Bubble tone="softBlue" className="top-10 -left-20 -z-10 size-56 lg:top-60 lg:-left-16 lg:size-96" />
       {/* Right Bubble */}
