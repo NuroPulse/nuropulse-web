@@ -1,87 +1,67 @@
-# Welcome to React Router!
+# NuroPulse Web Dashboard
 
-A modern, production-ready template for building full-stack React applications using React Router.
+The neurologist-facing web dashboard of **NuroPulse**, a companion system for people living with Parkinson's disease and for anyone having problem with hand tremor.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+Patients run short tremor checks with the NuroPulse mobile app (nuropulse-mobile). The results are connected via Supabase, so a neurologist can review each patient's tremor measurements over time, next to their medication log.
+
+> NuroPulse is not a diagnostic tool and does not replace a doctor's examination. The dashboard shows what the app measured; the neurologist interprets it.
 
 ## Features
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+| Area | What it does |
+| --- | --- | 
+| Landing page (`/`) | Public page: what NuroPulse is, how it works, sign-in for doctors
+| Sign-up and login (`/register`, `/login`) | Doctor accounts through Supabase Auth; only `role = doctor` may enter
+| Dashboard (`/dashboard`) | Patients flagged "Perlu ditinjau", a summary of totals, and patients who have not checked in
+| Patients (`/patients`, `/patients/:id`) | Patient list with search and filters; patient detail with tremor tests, medication schedule, and medication log
+| Medicines (`/medicines`, `/medicines/:id`) | Shared medicine catalog: browse, search, add
+| Profile (`/profile`) | Read-only doctor profile and the doctor's connection code
 
-## Getting Started
+## Tech stack
 
-### Installation
+- [React Router](https://reactrouter.com/) in framework mode, as a single-page app (`ssr: false`)
+- TypeScript (strict)
+- [Supabase](https://supabase.com/) (`@supabase/supabase-js`), called from the browser with the anon key; access is enforced by Row Level Security
+- [TanStack Query](https://tanstack.com/query) for data fetching and caching
+- Tailwind CSS v4 and [shadcn/ui](https://ui.shadcn.com/) (Radix UI), with design tokens in `app/app.css`
+- [Lucide](https://lucide.dev/) icons
 
-Install the dependencies:
+## Getting started
+
+### Setup
 
 ```bash
 npm install
+cp .env.example .env
 ```
 
-### Development
+Fill in `.env`:
 
-Start the development server with HMR:
+```bash
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon or publishable key>
+```
+### Run
 
 ```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+The app runs at `http://localhost:5173`. Restart the dev server after changing `.env`.
 
-## Building for Production
-
-Create a production build:
-
-```bash
-npm run build
-```
-
-## Deployment
-
-### Docker Deployment
-
-To build and run using Docker:
-
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
+## Project structure
 
 ```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+app/
+  components/
+    elements/     # Shared app elements: sidebar, status and flag badges, pagination, decorations
+    ui/           # shadcn/ui primitives
+  lib/            # Supabase client, query client, shared helpers (dates, patient status, medication rules)
+  modules/        # One folder per feature: LandingPage, Auth, Dashboard, Patients, Medicines, Profile, NotFound
+  routes/         # Route files; each renders a module page
+  app.css         # Tailwind setup and design tokens
+  root.tsx        # App root and providers
+  routes.ts       # Route config
+public/assets/    # Images, logo
 ```
 
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
