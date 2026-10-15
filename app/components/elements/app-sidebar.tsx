@@ -1,5 +1,4 @@
 import { NavLink } from "react-router";
-
 import { cn } from "~/lib/utils";
 
 const navItems = [
@@ -12,7 +11,11 @@ const navItems = [
 export function AppSidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground">
-      <p className="mb-6 text-sh6">NuroPulse</p>
+      <p className="mb-6 flex items-center gap-2.5 text-sh6">
+        <img src="/assets/shared/logo-biru.svg" alt="" className="block h-8 w-auto" />
+        NuroPulse
+      </p>
+      <div className="border-2"></div>
       <nav>
         <ul className="flex flex-col gap-1">
           {navItems.map((item) => (

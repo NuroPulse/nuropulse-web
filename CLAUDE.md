@@ -277,6 +277,7 @@ modules/Patients/
 - Each module has one `index.ts` that exports only its public surface: the pages that routes render and the types other modules need. Routes and other modules import from `~/modules/<Module>` only.
 - Files inside a module never import from their own module's `index.ts`; they use relative imports, to avoid circular imports.
 - Do not add barrel files anywhere else (`components/`, `lib/`).
+- Static images live in `public/assets/<module-name>/` (kebab-case, for example `public/assets/landing-page/`); images used across modules live in `public/assets/shared/`. The logo mark has two variants there: `logo-putih.svg` for dark (navy) backgrounds and `logo-biru.svg` for light backgrounds. It is a mark only, so place the "NuroPulse" text next to it.
 - Ask before creating a new module, a new top-level folder, or a new layer.
 
 ### Routes
