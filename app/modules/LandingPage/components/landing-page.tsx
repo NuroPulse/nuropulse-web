@@ -7,7 +7,7 @@ import { Works } from "./works";
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-card text-foreground">
+    <div className="relative isolate min-h-screen overflow-x-clip bg-surface text-ink-muted">
       <SiteHeader />
       <main>
         <Hero />

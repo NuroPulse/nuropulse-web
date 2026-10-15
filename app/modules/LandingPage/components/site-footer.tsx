@@ -2,9 +2,9 @@ import { Link } from "react-router";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line">
+    <footer className="border-t border-line bg-surface-raised">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-8 gap-y-4 px-4 py-8 sm:px-8">
-        <Link to="/" className="flex items-center gap-2.5 text-primary-900">
+        <Link to="/" className="flex items-center gap-2.5 text-primary-600">
           <img src="/assets/shared/logo-biru.svg" alt="" className="block h-7 w-auto"/>
           <span className="text-h7 tracking-tight">NuroPulse</span>
         </Link>

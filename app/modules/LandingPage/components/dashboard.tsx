@@ -1,13 +1,14 @@
 import { Search } from "lucide-react";
 
+import { Bubble } from "~/components/elements/bubble";
 import { cn } from "~/lib/utils";
 
 // Illustration only: static sample data for the dashboard mockup, never real patients.
 const samplePatients = [
   { name: "Pasien A", badge: "Perlu ditinjau", badgeClassName: "bg-warning-soft text-warning" },
-  { name: "Pasien B", badge: "Aktif", badgeClassName: "bg-secondary-100 text-secondary-800" },
+  { name: "Pasien B", badge: "Aktif", badgeClassName: "bg-secondary-100 text-secondary-700" },
   { name: "Pasien C", badge: "Belum check-in", badgeClassName: "bg-surface-sunken text-ink-muted" },
-  { name: "Pasien D", badge: "Aktif", badgeClassName: "bg-secondary-100 text-secondary-800" },
+  { name: "Pasien D", badge: "Aktif", badgeClassName: "bg-secondary-100 text-secondary-700" },
 ];
 
 const sampleStats = [
@@ -35,10 +36,13 @@ const sampleTrend = [
 
 export function Dashboard() {
   return (
-    <section id="pratinjau" className="mx-auto max-w-5xl px-4 pt-24 sm:px-8">
+    <section id="pratinjau" className="relative mx-auto max-w-5xl px-4 pt-24 sm:px-8">
       <div className="max-w-3xl">
-        <p className="text-sh8 text-primary-700">Dashboard neurolog</p>
-        <h2 className="mt-3 text-h4 tracking-tight text-primary-900 lg:text-h3">
+        <p className="inline-flex items-center gap-2 text-sh8 text-secondary-600">
+          <span aria-hidden="true" className="size-2 rounded-full bg-secondary-500" />
+          Dashboard neurolog
+        </p>
+        <h2 className="mt-3 text-h4 tracking-tight text-primary-600 lg:text-h3">
           Semua pasien Anda dalam satu layar
         </h2>
         <p className="mt-4 text-body text-ink-muted">
@@ -47,14 +51,15 @@ export function Dashboard() {
         </p>
       </div>
 
-      <figure className="mt-10">
-        <div className="rounded-sm border border-line bg-card p-4 text-card-foreground sm:p-6">
+      <figure className="relative mt-10">
+        <Bubble tone="blue" className="-bottom-16 -left-36 -z-10 size-72 lg:-left-40 lg:size-80" />
+        <div className="rounded-2xl border border-line bg-surface-raised p-4 text-card-foreground sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
             <div>
               <p className="text-h7">Hai, dr. Vanka</p>
               <p className="text-b9 text-ink-muted">Ringkasan pasien Anda hari ini</p>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-b9 text-ink-muted">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-3 py-1.5 text-b9 text-ink-muted">
               <Search aria-hidden="true" className="size-3.5" />
               Cari pasien
             </span>
@@ -64,7 +69,7 @@ export function Dashboard() {
             {sampleStats.map((stat) => (
               <div key={stat.label} className="px-3 first:pl-0">
                 <dt className="text-b9 text-ink-muted">{stat.label}</dt>
-                <dd className="text-h5 text-primary-900">{stat.value}</dd>
+                <dd className="text-h5 text-primary-600">{stat.value}</dd>
               </div>
             ))}
           </dl>
@@ -78,7 +83,7 @@ export function Dashboard() {
                     <span className="text-b8">{patient.name}</span>
                     <span
                       className={cn(
-                        "rounded-sm px-2 py-0.5 text-sh9 whitespace-nowrap",
+                        "rounded-full px-2.5 py-0.5 text-sh9 whitespace-nowrap",
                         patient.badgeClassName,
                       )}
                     >
@@ -113,17 +118,17 @@ export function Dashboard() {
                 {sampleTrend.map((bar, i) => (
                   <span
                     key={i}
-                    className={cn("h-2 flex-1", bar.dosed ? "bg-secondary-500" : "bg-surface-sunken")}
+                    className={cn("h-2 flex-1 rounded-full", bar.dosed ? "bg-secondary-500" : "bg-surface-sunken")}
                   />
                 ))}
               </div>
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-b9 text-ink-muted">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 bg-primary-600" />
+                  <span className="size-2 rounded-full bg-primary-600" />
                   Pola tremor terdeteksi
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="size-2 bg-secondary-500" />
+                  <span className="size-2 rounded-full bg-secondary-500" />
                   Obat diminum
                 </span>
               </div>

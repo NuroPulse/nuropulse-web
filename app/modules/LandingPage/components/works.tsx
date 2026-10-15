@@ -1,3 +1,6 @@
+import { Bubble } from "~/components/elements/bubble";
+import { Tulip } from "~/components/elements/tulip";
+
 const steps = [
   {
     number: 1,
@@ -24,10 +27,18 @@ const steps = [
 
 export function Works() {
   return (
-    <section id="cara-kerja" className="mx-auto max-w-5xl px-4 pt-24 sm:px-8">
+    <section id="cara-kerja" className="relative mx-auto max-w-5xl px-4 pt-24 sm:px-8">
+      <Tulip
+        tone="lavender"
+        className="absolute top-24 right-0 -z-10 hidden h-28 w-21 rotate-6 lg:block"
+      />
+      <Bubble className="top-1/3 -right-40 -z-10 size-80 lg:-right-48 lg:size-96" />
       <div className="max-w-3xl">
-        <p className="text-sh8 text-primary-700">Cara kerja</p>
-        <h2 className="mt-3 text-h4 tracking-tight text-primary-900 lg:text-h3">
+        <p className="inline-flex items-center gap-2 text-sh8 text-secondary-600">
+          <span aria-hidden="true" className="size-2 rounded-full bg-secondary-500" />
+          Cara kerja
+        </p>
+        <h2 className="mt-3 text-h4 tracking-tight text-primary-600 lg:text-h3">
           Dari ponsel pasien ke dashboard neurolog
         </h2>
         <p className="mt-4 text-body text-ink-muted">
@@ -36,22 +47,24 @@ export function Works() {
         </p>
       </div>
 
-      <ol className="mt-12 flex flex-col gap-12">
+      <ol className="mt-12 flex flex-col gap-6">
         {steps.map((step) => (
           <li
             key={step.number}
-            className="grid gap-6 border-t border-line pt-6 md:grid-cols-12 md:gap-10"
+            className="grid gap-6 rounded-2xl border border-line bg-surface-raised p-6 md:grid-cols-12 md:gap-10 md:p-8"
           >
             <div className="md:col-span-7">
-              <p className="text-h3 text-primary-600">{step.number}</p>
-              <h3 className="mt-2 text-h6 text-primary-900">{step.title}</h3>
+              <p className="flex size-10 items-center justify-center rounded-full bg-secondary-100 text-h7 text-secondary-600">
+                {step.number}
+              </p>
+              <h3 className="mt-4 text-h6 text-primary-600">{step.title}</h3>
               <p className="mt-2 text-body text-ink-muted">{step.body}</p>
             </div>
             <img
               src={step.image}
               alt={step.imageAlt}
               loading="lazy"
-              className="block aspect-4/3 w-full rounded-sm object-cover md:col-span-5"
+              className="block aspect-4/3 w-full rounded-2xl border border-line bg-primary-50 object-cover md:col-span-5"
             />
           </li>
         ))}
