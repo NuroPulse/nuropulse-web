@@ -2,7 +2,17 @@
 
 Guidance for Claude Code (and any contributor) working in this repository. Read this fully before writing code. When a decision here changes, update this file in the same change.
 
-Status: draft v0.1 (2026-10-14). 
+Status: draft v0.2 (2026-10-15).
+
+### Changelog
+
+- **v0.2 (2026-10-15)**
+  - Doctor sign-up now asks for a phone number (WhatsApp), sent as `phone_number` in the sign-up metadata; `phone_number` is required for patients and doctors (Sections 2, 3, 4, 9, 10).
+  - New "Visual style" subsection in Section 7: follow the mobile app (light surfaces, cards, sparing blue, green accents, status boxes, shared decorations).
+  - Section 8: wording for sign-up, login, the sidebar, and the Profile page; the connection code card is titled "Kode koneksi Anda".
+  - Section 13: `npm run gen:types` to regenerate the Supabase types.
+  - Open: the generated schema differs from Section 4 (for example `profiles.phone` instead of `phone_number`, plus `doctor_details` and `patient_details`); Section 4 is updated once the team decides.
+- **v0.1 (2026-10-14):** first draft.
 
 ---
 
@@ -29,9 +39,9 @@ Source of truth for data shapes: the **NuroPulse Data Contract** (Google Doc: ht
 | Feature | Notes |
 | --- | --- |
 | Landing page (public) | Open to everyone without login, including patients and the general public: logo, what NuroPulse is, how it works (check in the app, doctor monitors on the dashboard), a disclaimer, and a doctors-only "Masuk" button. Static content; no Supabase calls. No patient section and no app download button. |
-| Doctor sign-up | Doctors register themselves on the web: full name, email, password. The backend assigns `role = doctor` and generates the connection code. No email confirmation and no password reset in the MVP. |
+| Doctor sign-up | Doctors register themselves on the web: full name, phone number (WhatsApp), email, password. The backend assigns `role = doctor` and generates the connection code. No email confirmation and no password reset in the MVP. |
 | Doctor login | Email + password via Supabase auth. Only `role = doctor` may enter. |
-| Dashboard overview | Greeting, totals (active patients, patients who have not checked in), latest flagged patients, searchable patient list with filters. |
+| Dashboard overview | Date and greeting, flagged patients ("Perlu ditinjau") as the main block, a summary of totals, and the patients who have not checked in. No patient table; that is Daftar Pasien. |
 | Patient directory | All patients connected to this doctor: name, phone number, activity status, last measurement, flag. Search, plus filters by activity status and by compliance (Section 10). |
 | Patient detail | Per patient: name and phone number, then three parts: **medication** (schedule), **medication log**, and **tremor tests** (latest metrics, trend graph, history). No other personal fields. |
 | Medicine library | One shared catalog of medicines that every doctor can read and add to. Add form: name, common dosage, notes. No review step and no request flow. |
@@ -68,7 +78,7 @@ Landing -> Login (or Sign-up -> Login) -> Dashboard overview
 ```
 
 1. **Landing (public, everyone).** NuroPulse logo, a short explanation of NuroPulse, how it works, the disclaimer, and a "Masuk" button explicitly marked as doctors-only so patients do not try to sign in (the automatic sign-out for non-doctor accounts stays as a safety net). A signed-in doctor who opens `/` is redirected to the dashboard. No sign-up for organizations (that was FisioMate).
-2. **Sign-up (doctors).** Doctors register themselves: full name, email, password. Patients never register on the web; they register in the mobile app. The login page links to sign-up ("Belum punya akun? Daftar") and back.
+2. **Sign-up (doctors).** Doctors register themselves: full name, phone number (WhatsApp), email, password. Patients never register on the web; they register in the mobile app. The login page links to sign-up ("Belum punya akun? Daftar") and back.
 3. **Login.** Email and password. Wrong credentials show the generic message from Section 8. After login the router redirects to the dashboard.
 4. **Connecting patients.** There is **one connection code per doctor** (`profiles.connection_code`). The doctor gives the code to the patient after diagnosis; the patient enters it in the mobile app. The web has **no** "create patient" form and does not generate per-patient codes. The doctor's own code is shown **on the Profile page only** (copy button), so they can share it. The code is fixed: the web has no way to regenerate it. Patients appear in the directory once connected.
 5. **Review.** The doctor opens a patient and reads the medication schedule, the medication log, and the tremor tests.
@@ -92,7 +102,7 @@ Supabase tables (decided): `profiles`, `measurements`, `medicines`, `medication_
 | `id` | uuid | Same as the Supabase auth user id |
 | `role` | text | `patient` or `doctor`. Web never writes it. |
 | `full_name` | text | Patient name shown to the doctor. For the signed-in doctor, the name on the Profile page (read-only). Entered at sign-up. |
-| `phone_number` | text | **Patients.** International format, for example `+6281234567890`. Entered by the patient at registration in the mobile app; the web only reads it. **Decided but not yet in the contract.** |
+| `phone_number` | text | **Patients and doctors, required.** International format, for example `+6281234567890`; for doctors, their WhatsApp number. Patients enter it at registration in the mobile app; doctors enter it on the web sign-up form, and the backend trigger copies it from the sign-up metadata. The web never writes it directly. **Decided but not yet in the contract, and not yet in `database.types.ts`: the backend still has to add the column.** |
 | `doctor_id` | uuid, nullable | **Patients.** The connected doctor. Set when the patient enters a connection code. Decided; not yet in the contract. |
 | `connected_at` | timestamptz, nullable | **Patients.** When the patient connected to the current doctor. Decided; not yet in the contract. |
 | `connection_code` | text, unique | Doctors only. 8 characters (the contract says "proposed"), generated automatically when the doctor account is created. The web shows the signed-in doctor's own code **on the Profile page**, read-only. |
@@ -333,6 +343,20 @@ Use the `~/` alias (maps to `app/`) for cross-folder imports and relative import
 - `danger` / `destructive` are for system states only: form errors, failed actions, destructive buttons. Never use them for patient data, measurements, or flags.
 - When the Figma file changes, update `app/app.css` first, then the components. Never redefine tokens inside a component.
 
+### Visual style
+
+The web follows the NuroPulse mobile app: white, airy, and calm. Every new page (dashboard, patients, medicines, profile) uses these rules.
+
+- **Base:** page background `bg-surface`; content sits in cards `rounded-2xl border border-line bg-surface-raised`, with no shadow (or `shadow-card` at most). Leave generous whitespace.
+- **Blue, used sparingly:** primary buttons (default `Button`, `primary-600`/`700`), headings (`text-primary-600`), icons, links, and chart lines. No large blue blocks or panels; a light tint (`bg-primary-50`) is the most a panel may carry.
+- **Green as the second accent (`secondary-*`):** secondary buttons and navigation, active or progress indicators, and small decorative touches such as a dot before a section label (`size-2 rounded-full bg-secondary-500` with `text-secondary-600` label).
+- **Illustrations, not photos:** flat vector art (blue, light lavender, green leaves) from the mobile team. Until it arrives, use a light placeholder (`rounded-2xl border border-line bg-primary-50`).
+- **Status boxes:** soft background + 1px border + icon on the left, for example `rounded-2xl border border-success bg-success-soft p-4` with a Lucide icon in `text-success`. Neutral notices (such as the disclaimer) use `success`; flags ("Perlu ditinjau") use `warning`; `danger` only for form errors and failed actions (see Design tokens).
+- **Inputs:** white (`bg-surface-raised`, already the `Input` default) with a `border-input` (`line-strong`) border; never a grey filled field.
+- **Text:** body `text-ink-muted` (also the page default on the landing page); headings `text-primary-600` in a single colour (or `text-ink` for small card titles). Avoid the darkest shades (`primary-800`/`900`, `secondary-800`/`900`) for text and shapes; they read too heavy next to the mobile app.
+- **Decorations (sparingly, never over text):** shared in `app/components/elements/`: `Tulip` (Parkinson's awareness symbol; vary `tone` between tulips), `TremorWave` (echoes the tremor signal chart), and `Bubble` (a large, low-contrast circle that fades into the page background with a faint shadow, placed partly off the page edge; never a small coloured dot). Place them behind content with `-z-10`, inside a wrapper with `isolate` and `overflow-x-clip` so they can flow between sections without a hard cut. No comment- or drop-shaped blobs.
+- **Shapes:** cards `rounded-2xl`; status boxes `rounded-xl` or `rounded-2xl`; badges and chips `rounded-full`; buttons and inputs keep the component default (`rounded-lg`).
+
 ---
 
 ## 8. Language rules
@@ -377,12 +401,28 @@ The labels report what one measurement found; they never describe the patient's 
 | Status: `tremor` | Pola tremor terdeteksi |
 | Last measurement | Pengukuran terakhir |
 | Last active | Terakhir aktif |
-| Doctor connection code | Kode koneksi dokter |
+| Doctor connection code (Profile card title) | Kode koneksi Anda |
 | Copy code | Salin Kode |
 | Sign up | Daftar |
 | Full name | Nama lengkap |
 | Link to sign-up | Belum punya akun? Daftar |
 | Link to login | Sudah punya akun? Masuk |
+| Sign-up page title | Daftar sebagai dokter |
+| Show password (button label) | Tampilkan kata sandi |
+| Hide password (button label) | Sembunyikan kata sandi |
+| Error: full name required | Nama lengkap wajib diisi. |
+| Error: phone number required | Nomor telepon wajib diisi. |
+| Error: phone number format | Gunakan format internasional, contoh +6281234567890. |
+| Phone number helper (doctor sign-up) | Nomor WhatsApp yang aktif, diawali kode negara. |
+| Password helper (doctor sign-up) | Minimal 6 karakter. Sebaiknya gabungkan huruf dan angka. |
+| Error: email required | Email wajib diisi. |
+| Error: email format | Format email tidak valid. |
+| Error: password required | Kata sandi wajib diisi. |
+| Error: password too short | Kata sandi minimal 6 karakter. |
+| Error: email already registered | Email ini sudah terdaftar. Silakan masuk. |
+| Error: weak password | Kata sandi terlalu lemah. Gunakan kata sandi yang lebih panjang dengan campuran huruf dan angka. |
+| Sign-up succeeded without a session (login page notice) | Akun berhasil dibuat. Silakan masuk. |
+| Loading (screen reader text) | Memuat… |
 | Phone number | Nomor telepon |
 | Activity status: active | Aktif |
 | Activity status: no check-in | Belum check-in |
@@ -393,12 +433,35 @@ The labels report what one measurement found; they never describe the patient's 
 | Compliance filter: medication | Kepatuhan obat |
 | Compliance filter: check-in | Kepatuhan check-in |
 | Compliance buckets | Baik, Sedang, Rendah |
+| Patient list label (above the title) | {n} pasien terhubung |
+| Patient list subtitle | Semua pasien yang memasukkan kode koneksi Anda di aplikasi NuroPulse. |
+| Status tabs | Semua · {n}, Aktif · {n}, Belum check-in · {n}, Tidak aktif · {n}, Belum ada pengukuran · {n} |
+| Patient table columns | Nama pasien, Nomor telepon, Status aktivitas, Pengukuran terakhir, Penanda |
+| Filters (default option) | Semua status · Filter Kepatuhan · Penanda |
+| Compliance filter options | Kepatuhan obat: Baik / Sedang / Rendah · Kepatuhan check-in: Baik / Sedang / Rendah |
+| Flag filter options | Perlu ditinjau · Tidak ditandai |
+| No matching patients | Tidak ada pasien yang cocok dengan pencarian atau filter. |
+| Reset filters | Atur ulang filter |
+| Empty patient list hint | Bagikan kode koneksi Anda kepada pasien agar mereka muncul di sini. Kode ada di halaman Profil Saya. |
+| Pagination summary (patients) | Menampilkan {a}–{b} dari {n} pasien |
 | Uncalibrated notice: title | Ambang belum dikalibrasi |
 | Uncalibrated notice: body | Status pola tremor memakai ambang awal yang belum divalidasi. Gunakan sebagai penanda, bukan kesimpulan klinis. |
 | Profile page | Profil Saya |
+| Sidebar menu label | MENU |
+| Sidebar: collapse / expand (button label) | Perkecil sidebar / Perlebar sidebar |
+| Sidebar: role under the doctor's name | Dokter |
+| Mobile: open the sidebar (button label) | Buka menu |
+| Mobile sidebar sheet (screen reader title / description) | Menu / Menampilkan menu navigasi. |
+| Sidebar toggle (screen reader, shadcn default) | Buka atau tutup menu |
 | Join date | Tanggal bergabung |
 | Code copied (toast) | Kode disalin. |
 | Connection code helper | Bagikan kode ini kepada pasien agar mereka dapat menghubungkan akun NuroPulse mereka dengan Anda. |
+| Profile page label (above the title) | Akun Anda |
+| Copy failed (toast) | Kode gagal disalin. Salin secara manual. |
+| Connection code missing (backend problem) | Kode koneksi belum tersedia. Hubungi tim NuroPulse. |
+| Connection code note | Pasien memasukkan kode di aplikasi NuroPulse. Setelah terhubung, pasien muncul di Daftar Pasien. |
+| Value not available | Tidak tersedia |
+| Retry (button) | Coba lagi |
 | Empty list | Belum ada data. |
 | No flag | Tidak ada yang perlu ditinjau. |
 | Flag reason: tremor pattern | Ditandai karena: pola tremor terdeteksi di {n} dari 5 pengukuran terakhir. |
@@ -410,6 +473,12 @@ The labels report what one measurement found; they never describe the patient's 
 | Landing: disclaimer | NuroPulse bukan alat diagnosis dan tidak menggantikan pemeriksaan dokter. |
 | Trend ranges | 7 Hari, 30 Hari, 3 Bulan |
 | Dashboard overview (page title, nav) | Dashboard |
+| Overview subtitle | {n} pasien perlu ditinjau hari ini. / Tidak ada yang perlu ditinjau. |
+| Overview flagged block | Perlu ditinjau · {n} pasien · Ditandai dari data 7 hari terakhir. Penanda hilang sendiri saat kondisinya tidak lagi terpenuhi. |
+| Overview summary card | Ringkasan: Pasien terhubung, Aktif (5 hari terakhir), Belum check-in, Perlu ditinjau · Lihat Daftar Pasien |
+| Overview not-checked-in card | Belum check-in · Tidak ada pengukuran 5–13 hari · {n} hari |
+| Nobody without a check-in | Tidak ada pasien yang belum check-in. |
+| Uncalibrated notice (Overview, one line) | Ambang belum dikalibrasi. Status pola tremor memakai ambang awal yang belum divalidasi. Gunakan sebagai penanda, bukan kesimpulan klinis. |
 | Page not found (404) | Halaman tidak ditemukan |
 | Medicine library | Daftar Obat |
 | Medicine detail | Detail Obat |
@@ -424,9 +493,56 @@ The labels report what one measurement found; they never describe the patient's 
 | Log status: taken | Diminum |
 | Log status: skipped | Dilewati |
 | Log status: missed | Terlewat |
+| Log status: pending (less than 2 hours after the scheduled time) | Menunggu |
+| Patient detail: jump links | Tes Tremor · Jadwal Obat · Riwayat Minum Obat |
+| Patient detail: meta | Terakhir aktif {tanggal, jam} |
+| Patient not found | Pasien tidak ditemukan. · Kembali ke Daftar Pasien |
+| Latest measurement card | Pengukuran terakhir · {tanggal, jam} · Tremor saat istirahat · algoritma {versi} |
+| Measurement metrics | Frekuensi puncak, Amplitudo pita (RMS), Rasio daya pita, Konsistensi, Durasi (detik) |
+| No measurement yet (detail) | Belum ada pengukuran. |
+| Trend card | Tren frekuensi puncak · Setiap titik adalah satu pengukuran. Strip di bawah menunjukkan dosis obat harian. |
+| Trend chart placeholder (until the chart is built) | Grafik tren akan ditampilkan di sini. · {n} pengukuran dalam rentang ini · pita tremor 3,5–7 Hz sebagai acuan |
+| Phone model change note | Ganti ponsel: {model} sejak {tanggal}. Amplitudo hanya sebanding pada model ponsel yang sama. |
+| Measurement history | Riwayat pengukuran · Diurutkan berdasarkan waktu pengukuran; columns Waktu pengukuran, Status, Frekuensi puncak, Amplitudo (RMS), Durasi, Ponsel, Algoritma |
+| Schedule card | Jadwal aktif yang Anda atur untuk pasien ini · Dosis per minum: {dosis} · Mulai {tanggal} · Selesai: {tanggal} / Tanpa batas |
+| No active schedule | Belum ada jadwal obat aktif untuk pasien ini. |
+| Edit schedule | Ubah · Ubah Jadwal · Simpan Perubahan |
+| Edit schedule note | Untuk mengganti obat, dosis, atau jam minum, hentikan jadwal ini lalu buat jadwal baru. |
+| Stop schedule confirm | Hentikan jadwal ini? · {obat} untuk {pasien} tidak akan dijadwalkan lagi. Riwayat minum obat yang sudah ada tetap tersimpan. |
+| Add schedule dialog | Untuk {pasien} · Obat · Pilih dari Daftar Obat · Obat belum ada? Tambah Obat · Contoh: 1 tablet · Tambah jam · 1–8 jam per hari, waktu setempat pasien. · Tanggal mulai · Tanggal selesai (opsional) · Kosongkan untuk tanpa batas. · Instruksi (opsional) · Contoh: sesudah makan · Simpan Jadwal |
+| Schedule form errors | Pilih obat. · Dosis per minum wajib diisi. · Dosis per minum maksimal 1000 karakter. · Tambahkan minimal satu jam minum. · Maksimal 8 jam minum per hari. · Format jam tidak valid. · Jam ini sudah ada. · Tanggal mulai wajib diisi. · Tanggal selesai tidak boleh sebelum tanggal mulai. · Instruksi maksimal 1000 karakter. |
+| Schedule toasts | Jadwal ditambahkan. · Jadwal diperbarui. · Jadwal dihentikan. |
+| Medication log card | Dicatat pasien di aplikasi. Terlewat = tidak ada catatan 2 jam setelah jadwal.; columns Jadwal, Obat, Status, Waktu diminum |
+| No doses in range | Belum ada dosis terjadwal dalam rentang ini. |
+| Medication compliance summary | Kepatuhan obat 7 hari terakhir: {persen} ({Baik/Sedang/Rendah}) / belum ada dosis terjadwal |
 | Error: patient not connected | Pasien ini tidak terhubung dengan Anda. |
 | Error: medicine in use | Obat ini masih dipakai pada jadwal pasien dan tidak bisa dihapus. |
 | Error: medicine duplicate | Obat dengan nama ini sudah ada. |
+| Medicine library label (above the title) | Katalog bersama semua dokter |
+| Medicine library subtitle | Pilih obat dari sini saat membuat jadwal pasien. Dosis umum hanya referensi, bukan dosis pasien. |
+| Medicine fields | Nama obat, Dosis umum, Catatan (opsional) |
+| Medicine table columns | Nama obat, Dosis umum (referensi), Catatan, Ditambahkan oleh |
+| Medicine form placeholders | Contoh: Levodopa/Karbidopa · Teks referensi dosis umum · Catatan tambahan |
+| Common dosage helper | Hanya referensi untuk dokter lain, bukan dosis pasien. |
+| Add medicine info | Obat langsung tersedia untuk semua dokter setelah disimpan. |
+| Add medicine dialog (screen reader description) | Tambahkan obat baru ke katalog bersama semua dokter. |
+| Save medicine / Cancel | Simpan Obat / Batal |
+| Medicine added (toast) | Obat ditambahkan. |
+| Error: medicine name required / too long | Nama obat wajib diisi. / Nama obat maksimal 120 karakter. |
+| Error: common dosage required / too long | Dosis umum wajib diisi. / Dosis umum maksimal 1000 karakter. |
+| Error: notes too long | Catatan maksimal 1000 karakter. |
+| Error: forbidden (add medicine) | Anda tidak memiliki akses untuk menambah obat. |
+| No search results (medicines) | Tidak ada obat yang cocok dengan pencarian. |
+| Pagination summary | Menampilkan {a}–{b} dari {n} obat |
+| Pagination buttons (labels) | Halaman sebelumnya / Halaman berikutnya / Halaman {n} |
+| Breadcrumb (screen reader label) | Navigasi halaman |
+| Medicine detail: added by | Ditambahkan oleh {nama} · {tanggal} |
+| Medicine detail: dosage note | Dosis umum hanya referensi. Dosis untuk setiap pasien diatur di jadwal obat pasien. |
+| Medicine usage card | Dipakai di jadwal Anda · Pasien Anda yang memiliki jadwal aktif dengan obat ini |
+| Medicine usage empty | Belum ada pasien Anda yang memakai obat ini. |
+| Medicine not found | Obat tidak ditemukan. · Kembali ke Daftar Obat |
+| Open a patient from a list | Lihat |
+| Close dialog (screen reader) | Tutup |
 
 The sign-up, status, and medication strings above are proposed wording; confirm them with the team when the screens are built. Add new strings to this table when you add them. Result text must never say or imply a diagnosis (no "pasien menderita", no disease name).
 
@@ -439,7 +555,7 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
 - The browser talks to Supabase directly with the anon key and the doctor's session. **RLS is the security boundary**, owned by the backend team. The UI hiding a patient is never access control; if a query returns data the doctor should not see, report it as a backend bug instead of filtering it in the UI.
 - **Read-only:** measurements, patient profiles, and medication logs.
 - **The web may write only:** new Medicine rows; Medication Schedule rows (create, and edit `end_date`, `instructions`, `is_active`). Nothing else. Never any Profile column (`role`, `full_name`, `phone_number`, `connection_code`). No hard deletes of schedules or logs.
-- **Sign-up** goes through Supabase Auth: `signUp` with `full_name` and `signup_source: 'web'` in the user metadata. The web never inserts or updates a Profile row itself. A backend trigger on new auth users creates the Profile: `role = doctor` and a connection code when `signup_source` is `web`, otherwise `role = patient`. A client could fake `signup_source`; this is accepted because doctor sign-up has no verification anyway. Email confirmation is off for the MVP; there is no password reset. Never log or display passwords.
+- **Sign-up** goes through Supabase Auth: `signUp` with `full_name`, `phone_number`, and `signup_source: 'web'` in the user metadata. The web never inserts or updates a Profile row itself. A backend trigger on new auth users creates the Profile: `role = doctor` and a connection code when `signup_source` is `web`, otherwise `role = patient`. A client could fake `signup_source`; this is accepted because doctor sign-up has no verification anyway. Email confirmation is off for the MVP; there is no password reset. Never log or display passwords.
 - A change to a schedule's medicine, dose, or times is two writes: stop the old schedule, create a new one. Do it so a failure of the second write is visible to the doctor (do not leave a patient silently without a schedule).
 - A doctor may create schedules only for patients connected to them. The backend enforces it through RLS; the UI only lists connected patients.
 - Medication data is shown only for the doctor's own patients and never mixed across patients.
@@ -461,13 +577,14 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
   - Final copy and branding come later; do not invent final copy.
   - Mobile first, readable at phone width, accessible (semantic headings, contrast, keyboard focus, alt text).
 
-- **Sign-up and login pages.** Sign-up: full name, email, password, "Daftar", and "Sudah punya akun? Masuk". Login: email, password, "Masuk", and "Belum punya akun? Daftar". Validate required fields in the form; map Supabase Auth errors to Indonesian text.
+- **Sign-up and login pages.** Sign-up: full name, phone number (international format, normalized by removing spaces, dashes, dots, and brackets), email, password, "Daftar", and "Sudah punya akun? Masuk". Login: email, password, "Masuk", and "Belum punya akun? Daftar". Validate required fields in the form; map Supabase Auth errors to Indonesian text.
 - **Activity status** (decided; one helper, reused everywhere), from the patient's most recent measurement `measured_at`:
-  - **Aktif:** a measurement within the last 3 days.
-  - **Belum check-in:** no measurement for 3 days or more (and less than 14).
+  - **Aktif:** a measurement within the last 5 days.
+  - **Belum check-in:** no measurement for 5 days or more (and less than 14).
   - **Tidak aktif:** no measurement for 14 days or more.
   - **Belum ada pengukuran:** the patient has never sent a measurement and connected less than 14 days ago (`connected_at`).
   - A patient with no measurement who connected 14 days ago or more is **Tidak aktif**.
+  - The thresholds live in `lib/patient-status.ts` (`ACTIVE_WITHIN_DAYS = 5`, `INACTIVE_AFTER_DAYS = 14`); the Overview texts derive from them.
 - **Flag ("Perlu ditinjau") (decided).** A patient is flagged when **at least one** of these is true:
   - "Pola tremor terdeteksi" in **3 of the last 5 measurements** within the last 7 days.
   - **Kepatuhan obat** is **Rendah** (< 50%) over the last 7 days (formula in the compliance filter below).
@@ -476,7 +593,12 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
   - A flag disappears on its own when its condition is no longer true. There is no "mark as reviewed" action and no stored flag state.
   - Badge style: `bg-warning-soft text-warning` with an icon and the text "Perlu ditinjau". Warning (amber) draws attention without signalling danger; never use `danger` for a flag.
   - Not part of the rule: "Belum check-in" (it has its own activity status) and amplitude changes against the patient's own history (thresholds are uncalibrated and amplitude depends on the phone model).
-- **Overview.** Greeting "Hai, {nama}". Cards: total active patients; patients with "Belum check-in"; latest patients marked "Perlu ditinjau". Below the flagged list, one line with the uncalibrated notice (see below). Then the patient list with search, filters, activity status, last active, "Lihat Detail". 20 per page.
+- **Overview.** Today's date ("Kamis, 15 Oktober 2026"), greeting "Hai, {nama}" with the name from the doctor's own profile, and the subtitle "{n} pasien perlu ditinjau hari ini." (or "Tidak ada yang perlu ditinjau." when n = 0). No patient table on the Overview; the full list lives in Daftar Pasien. Two columns on large screens; the right column sets the row height:
+  - **Left, main block "Perlu ditinjau"** with a count pill ("{n} pasien") and the note "Ditandai dari data 7 hari terakhir. Penanda hilang sendiri saat kondisinya tidak lagi terpenuhi." Each flagged patient shows the name, then the flag reason ("Ditandai karena: …", warning icon inline so a wrapped line starts at the left edge), then "Terakhir aktif …", and a filled "Lihat Detail" button to the patient. The list scrolls inside the card (capped height when the columns stack on small screens). At the bottom, one small grey line with the uncalibrated notice. Empty: "Tidak ada yang perlu ditinjau."
+  - **Right, "Ringkasan":** Pasien terhubung, Aktif (5 hari terakhir), Belum check-in, Perlu ditinjau, as plain numbers without coloured icons, then the link "Lihat Daftar Pasien".
+  - **Right, "Belum check-in":** "Tidak ada pengukuran 5–13 hari", then every such patient (longest without a measurement first) with "{n} hari", in a list about three rows tall that scrolls. Each name links to the patient.
+  - Colour only in the "Perlu ditinjau" block; Ringkasan and Belum check-in stay neutral. Activity status comes from the shared helper in `lib/patient-status.ts`; flags are read from the data, never recomputed.
+  - Until the backend is connected, the numbers come from the temporary `lib/sample-data.ts`, shared with the patient pages so the counts match.
 - **Compliance filter ("Filter Kepatuhan").** Filters the patient list by one of two measures, both over the **last 7 days**:
   - **Kepatuhan obat** = doses marked taken ÷ scheduled doses whose time has passed (a dose counts once it is missed or logged).
   - **Kepatuhan check-in** = days with at least one measurement ÷ 7.
@@ -502,7 +624,7 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
 
 - Type-check and tests must pass before work is reported done.
 - Unit-test the status mapper, the `snake_case` → `camelCase` mappers, date helpers, and any filter logic. Flags come from the backend view; test only how the web maps and shows them.
-- Unit-test the activity status helper at its edges: just under 3 days, exactly 3 days, just under 14 days, exactly 14 days, and patients with no measurement before and after 14 days since `connected_at`.
+- Unit-test the activity status helper at its edges: just under 5 days, exactly 5 days, just under 14 days, exactly 14 days, and patients with no measurement before and after 14 days since `connected_at`.
 - Unit-test the compliance helper: bucket edges (49/50%, 79/80%), patients with no scheduled dose, and the 2-hour missed rule.
 - Unit-test the schedule rules: which doses fall on a given date (active flag, start and end date, `times`), schedule form validation (1 to 8 unique ascending `HH:MM` times, `end_date` not before `start_date`), and the missed-dose derivation from schedule and log.
 - No component tests in the MVP; check loading, empty, and error states by hand.
@@ -524,7 +646,10 @@ npm install
 npm run dev          # development server
 npm run typecheck    # react-router typegen && tsc
 npm run build        # SPA build: static files to deploy
+npm run gen:types    # regenerate app/lib/database.types.ts from the Supabase project
 ```
+
+- `gen:types` needs a one-time `npx supabase login`. Run it from `npm run` (not a raw PowerShell `>` redirect, which writes UTF-16). Regenerate whenever the backend changes the schema, then run `npm run typecheck` to find code that no longer matches.
 
 - `npm run start` (`react-router-serve`) comes from the SSR template and is not used in SPA mode. `@react-router/node`, `@react-router/serve`, and that script can be removed once the SPA build is confirmed.
 - After the first SPA build, record here the output folder to deploy (expected `build/client`).
