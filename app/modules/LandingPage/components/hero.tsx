@@ -56,13 +56,13 @@ export function Hero() {
             </div>
           </div>
 
-          <figure className="relative mx-auto h-80 w-full max-w-md sm:h-96 lg:h-120 lg:max-w-none">
+          <figure className="relative mx-auto h-80 w-full max-w-md sm:h-96 lg:h-120 lg:max-w-none hidden xl:flex">
             <Bubble
               tone="mint"
               className="-right-24 -bottom-24 -z-10 size-72 sm:size-96 lg:-right-40 lg:-bottom-40 lg:size-120"
             />
             <img
-              src={heroImage}
+              src="/assets/landing-page/doctor-image.webp"
               alt="Neurolog membahas grafik di laptop bersama pasien lanjut usia di ruang praktik"
               className="absolute top-0 left-1/2 size-64 -translate-x-1/2 rounded-full border-8 border-surface-raised bg-primary-50 object-cover sm:size-80 lg:size-96"
             />
