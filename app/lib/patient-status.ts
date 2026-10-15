@@ -3,7 +3,7 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const ACTIVE_WITHIN_DAYS = 3;
+export const ACTIVE_WITHIN_DAYS = 5;
 export const INACTIVE_AFTER_DAYS = 14;
 
 export type ActivityStatus = "active" | "no_check_in" | "inactive" | "no_measurement";
@@ -21,7 +21,8 @@ export function getActivityStatus({ lastMeasuredAt, connectedAt }: ActivityInput
     return "inactive";
   }
 
-  // Never measured: still "no measurement yet" during the first 14 days after connecting.
+  // Never measured: still "no measurement yet" during the first INACTIVE_AFTER_DAYS days after
+  // connecting.
   // A missing connectedAt means the connection time is unknown; treat it as just connected.
   if (!connectedAt) return "no_measurement";
   const sinceConnected = now.getTime() - new Date(connectedAt).getTime();

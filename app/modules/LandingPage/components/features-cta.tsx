@@ -41,7 +41,7 @@ export function FeaturesCta() {
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <dt className="text-sh8">Belum check-in</dt>
-                  <dd className="text-ink-muted">Tidak ada pengukuran dalam 3 hari</dd>
+                  <dd className="text-ink-muted">Tidak ada pengukuran dalam 5 hari</dd>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <dt className="rounded-full bg-secondary-100 px-2.5 py-0.5 text-sh9 text-secondary-700">

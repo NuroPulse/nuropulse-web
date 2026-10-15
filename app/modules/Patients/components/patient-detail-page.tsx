@@ -10,9 +10,9 @@ import { formatDateTime } from "~/lib/date";
 import { toLocalDateKey } from "~/lib/medication";
 import { getActivityStatus } from "~/lib/patient-status";
 import { formatPhoneNumber } from "~/lib/phone";
+import { buildSamplePatients } from "~/lib/sample-data";
 import type { Measurement, MedicationLog, MedicationSchedule, NewScheduleInput, PatientListItem } from "../types";
 import { MedicationLogSection } from "./medication-log-section";
-import { buildSamplePatients } from "./patient-list-page";
 import { ScheduleSection } from "./schedule-section";
 import { TremorSection } from "./tremor-section";
 

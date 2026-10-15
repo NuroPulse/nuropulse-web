@@ -59,3 +59,15 @@ export function formatDateOnly(ymd: string): string {
   const [year, month, day] = ymd.split("-").map(Number);
   return shortDateFormatter.format(new Date(year, month - 1, day));
 }
+
+const fullDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+// "Kamis, 15 Oktober 2026"
+export function formatFullDate(date: Date): string {
+  return fullDateFormatter.format(date);
+}
