@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { Loader2 } from "lucide-react";
 
 import type { Route } from "./+types/root";
 import { queryClient } from "~/lib/query-client";
@@ -28,6 +29,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+// Shown on first load while route clientLoaders (session and role checks) run,
+// so protected or redirected pages never flash. Also baked into index.html at build time.
+export function HydrateFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-screen items-center justify-center bg-background"
+    >
+      <Loader2 aria-hidden="true" className="size-6 animate-spin text-primary-600" />
+      <span className="sr-only">Memuat…</span>
+    </div>
   );
 }
 

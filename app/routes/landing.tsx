@@ -1,4 +1,5 @@
 import type { Route } from "./+types/landing";
+import { redirectIfDoctor } from "~/modules/Auth";
 import { LandingPage } from "~/modules/LandingPage";
 
 export function meta({}: Route.MetaArgs) {
@@ -8,8 +9,10 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-// TODO: redirect a signed-in doctor to /dashboard once the Supabase schema
-// (profiles.role) has been checked against CLAUDE.md Section 4.
+export async function clientLoader() {
+  return redirectIfDoctor();
+}
+
 export default function LandingRoute() {
   return <LandingPage />;
 }

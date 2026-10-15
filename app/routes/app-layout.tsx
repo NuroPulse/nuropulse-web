@@ -1,10 +1,16 @@
 import { Outlet } from "react-router";
 
 import { AppSidebar } from "~/components/elements/app-sidebar";
+import { requireDoctor, useSignOutRedirect } from "~/modules/Auth";
 
-// TODO: add the session and doctor-role guard (redirect to /login, sign out
-// non-doctors) once the Supabase schema has been checked against CLAUDE.md Section 4.
+// Every doctor page sits under this layout, so this one guard covers them all.
+export async function clientLoader() {
+  return requireDoctor();
+}
+
 export default function AppLayout() {
+  useSignOutRedirect();
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <AppSidebar />

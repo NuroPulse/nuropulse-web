@@ -5,6 +5,7 @@ import { cn } from "~/lib/utils";
 const bubbleTones = {
   neutral: "from-surface-raised to-surface",
   blue: "from-primary-50 to-surface",
+  softBlue: "from-primary-100 to-surface",
   green: "from-secondary-50 to-surface",
   // Stronger green, for the one accent bubble in the hero.
   mint: "from-secondary-200 to-surface",
