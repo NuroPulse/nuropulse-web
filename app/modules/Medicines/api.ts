@@ -68,19 +68,42 @@ export async function getMedicine(id: string): Promise<Medicine | null> {
   return data ? toMedicine(data) : null;
 }
 
+async function getSignedInDoctorId(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw toMedicineFailure(error);
+  const doctorId = data.session?.user.id;
+  // The app layout guard only renders medicine pages for a signed-in doctor.
+  if (!doctorId) throw new MedicineFailure("unknown");
+  return doctorId;
+}
+
 // Active schedules of the signed-in doctor's own patients that use this medicine.
-// TODO: query medication_schedules once its schema matches the contract
-// (the generated `times` column is text, the contract says text[]).
-export async function listMedicineUsage(_medicineId: string): Promise<MedicineUsage[]> {
-  return [];
+export async function listMedicineUsage(medicineId: string): Promise<MedicineUsage[]> {
+  const doctorId = await getSignedInDoctorId();
+
+  const { data, error } = await supabase
+    .from("medication_schedules")
+    .select("id, patient_id, dose, times, patient:patient_details(full_name)")
+    .eq("medicine_id", medicineId)
+    .eq("doctor_id", doctorId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+  // 22P02: the id in the URL is not a valid uuid, so nothing can use it.
+  if (error?.code === "22P02") return [];
+  if (error) throw toMedicineFailure(error);
+
+  return data.map((row) => ({
+    scheduleId: row.id,
+    patientId: row.patient_id,
+    // patient_id is a required foreign key, so the name is only missing if RLS hides the row.
+    patientName: row.patient?.full_name ?? "—",
+    dose: row.dose,
+    times: row.times,
+  }));
 }
 
 export async function addMedicine(input: NewMedicineInput): Promise<Medicine> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw toMedicineFailure(sessionError);
-  const doctorId = sessionData.session?.user.id;
-  // The app layout guard only renders this page for a signed-in doctor.
-  if (!doctorId) throw new MedicineFailure("unknown");
+  const doctorId = await getSignedInDoctorId();
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")

@@ -2,6 +2,7 @@ import type { Tables } from "~/lib/database.types";
 import { supabase } from "~/lib/supabase";
 import {
   PatientFailure,
+  type MedicationLog,
   type MedicationSchedule,
   type NewScheduleInput,
   type PatientListItem,
@@ -239,4 +240,35 @@ export function updateSchedule(scheduleId: string, changes: ScheduleChanges): Pr
 // Schedules are never deleted; stopping keeps past logs pointing at the right dose.
 export function stopSchedule(scheduleId: string): Promise<MedicationSchedule> {
   return patchSchedule(scheduleId, { is_active: false });
+}
+
+// Longest range the medication log shows (7 or 30 days).
+const MEDICATION_LOG_WINDOW_DAYS = 30;
+
+// The patient's answered doses of the last 30 days. Written by mobile only; the web reads them.
+// "Terlewat" is not stored: it is derived from schedules and logs in the component.
+export async function listMedicationLogs(patientId: string): Promise<MedicationLog[]> {
+  const since = new Date(Date.now() - MEDICATION_LOG_WINDOW_DAYS * DAY_MS).toISOString();
+  const { data, error } = await supabase
+    .from("medication_logs")
+    .select("id, schedule_id, scheduled_at, status, taken_at, logged_at")
+    .eq("patient_id", patientId)
+    .gte("scheduled_at", since)
+    .order("scheduled_at", { ascending: false });
+  if (error) throw toPatientFailure(error);
+
+  return data.flatMap((row): MedicationLog[] => {
+    // status is plain text in the database; the contract allows only these two values.
+    if (row.status !== "taken" && row.status !== "skipped") return [];
+    return [
+      {
+        id: row.id,
+        scheduleId: row.schedule_id,
+        scheduledAt: row.scheduled_at,
+        status: row.status,
+        takenAt: row.status === "taken" ? row.taken_at : null,
+        loggedAt: row.logged_at,
+      },
+    ];
+  });
 }

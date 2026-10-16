@@ -3,12 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createSchedule,
   getPatient,
+  listMedicationLogs,
   listMyPatients,
   listSchedules,
   stopSchedule,
   updateSchedule,
 } from "./api";
 import type {
+  MedicationLog,
   MedicationSchedule,
   NewScheduleInput,
   PatientFailure,
@@ -21,6 +23,7 @@ export const patientQueryKeys = {
   list: () => [...patientQueryKeys.all, "list"] as const,
   detail: (id: string) => [...patientQueryKeys.all, "detail", id] as const,
   schedules: (id: string) => [...patientQueryKeys.all, "schedules", id] as const,
+  medicationLogs: (id: string) => [...patientQueryKeys.all, "medication-logs", id] as const,
 };
 
 export function useMyPatients() {
@@ -41,6 +44,13 @@ export function useSchedules(patientId: string) {
   return useQuery<MedicationSchedule[], PatientFailure>({
     queryKey: patientQueryKeys.schedules(patientId),
     queryFn: () => listSchedules(patientId),
+  });
+}
+
+export function useMedicationLogs(patientId: string) {
+  return useQuery<MedicationLog[], PatientFailure>({
+    queryKey: patientQueryKeys.medicationLogs(patientId),
+    queryFn: () => listMedicationLogs(patientId),
   });
 }
 

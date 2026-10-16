@@ -7,11 +7,10 @@ import { FlagBadge, flagReasonText } from "~/components/elements/flag-badge";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatDateTime } from "~/lib/date";
-import { toLocalDateKey } from "~/lib/medication";
 import { getActivityStatus } from "~/lib/patient-status";
 import { formatPhoneNumber } from "~/lib/phone";
 import { usePatient } from "../hooks";
-import type { Measurement, MedicationLog, MedicationSchedule, PatientListItem } from "../types";
+import type { Measurement, PatientListItem } from "../types";
 import { MedicationLogSection } from "./medication-log-section";
 import { ScheduleSection } from "./schedule-section";
 import { TremorSection } from "./tremor-section";
@@ -19,7 +18,7 @@ import { TremorSection } from "./tremor-section";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-// TODO: Replace measurements, schedules, and logs with Supabase queries.
+// TODO: Replace measurements with a Supabase query.
 // Sample data only. Generated from the patient id so each patient always gets the same
 // history; times are relative to "now".
 
@@ -71,73 +70,6 @@ function buildSampleMeasurements(patient: PatientListItem): Measurement[] {
   });
 }
 
-function buildSampleSchedules(patient: PatientListItem, now: Date): MedicationSchedule[] {
-  if (patient.medicationCompliance === null) return [];
-  const day = (offset: number) => toLocalDateKey(new Date(now.getTime() + offset * DAY_MS));
-  return [
-    {
-      id: `${patient.id}-s1`,
-      patientId: patient.id,
-      medicineId: "sample-levodopa",
-      medicineName: "Levodopa/Karbidopa",
-      dose: "1 tablet",
-      times: ["07:00", "13:00", "19:00"],
-      startDate: day(-45),
-      endDate: null,
-      instructions: "Diminum 30 menit sebelum makan.",
-      isActive: true,
-      updatedAt: new Date(now.getTime() - 45 * DAY_MS).toISOString(),
-    },
-    {
-      id: `${patient.id}-s2`,
-      patientId: patient.id,
-      medicineId: "sample-pramipeksol",
-      medicineName: "Pramipeksol",
-      dose: "½ tablet",
-      times: ["07:00", "19:00"],
-      startDate: day(-25),
-      endDate: day(66),
-      instructions: "Sesudah makan.",
-      isActive: true,
-      updatedAt: new Date(now.getTime() - 25 * DAY_MS).toISOString(),
-    },
-  ];
-}
-
-// Taken or skipped logs following the patient's compliance; some doses get no log at all,
-// so they show up as "Terlewat" once 2 hours have passed.
-function buildSampleLogs(patient: PatientListItem, schedules: MedicationSchedule[], now: Date): MedicationLog[] {
-  const random = seededRandom(`${patient.id}-logs`);
-  const compliance = patient.medicationCompliance ?? 0;
-  const logs: MedicationLog[] = [];
-
-  for (const schedule of schedules) {
-    for (let offset = 30; offset >= 0; offset -= 1) {
-      const date = new Date(now.getTime() - offset * DAY_MS);
-      const ymd = toLocalDateKey(date);
-      if (ymd < schedule.startDate) continue;
-      for (const time of schedule.times) {
-        const [hours, minutes] = time.split(":").map(Number);
-        const scheduledAt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes);
-        if (scheduledAt > now) continue;
-        const roll = random();
-        if (roll >= compliance + (1 - compliance) / 2) continue;
-        const taken = roll < compliance;
-        const loggedAt = new Date(scheduledAt.getTime() + random() * 40 * 60 * 1000);
-        logs.push({
-          id: `${schedule.id}-${scheduledAt.getTime()}`,
-          scheduleId: schedule.id,
-          scheduledAt: scheduledAt.toISOString(),
-          status: taken ? "taken" : "skipped",
-          takenAt: taken ? loggedAt.toISOString() : null,
-          loggedAt: loggedAt.toISOString(),
-        });
-      }
-    }
-  }
-  return logs;
-}
-
 const jumpLinks = [
   { href: "#tes-tremor", label: "Tes Tremor", icon: Activity },
   { href: "#jadwal-obat", label: "Jadwal Obat", icon: Pill },
@@ -151,12 +83,6 @@ export function PatientDetailPage() {
   const patientQuery = usePatient(patientId);
   const patient = patientQuery.data ?? null;
   const measurements = useMemo(() => (patient ? buildSampleMeasurements(patient) : []), [patient]);
-  // TODO: the medication log still uses sample schedules and logs until medication_logs is wired.
-  const sampleSchedules = useMemo(() => (patient ? buildSampleSchedules(patient, now) : []), [patient, now]);
-  const logs = useMemo(
-    () => (patient ? buildSampleLogs(patient, sampleSchedules, now) : []),
-    [patient, sampleSchedules, now],
-  );
 
   if (patientQuery.isPending) {
     return (
@@ -288,7 +214,7 @@ export function PatientDetailPage() {
       <div className="mt-6 flex flex-col gap-6">
         <TremorSection measurements={measurements} now={now} />
         <ScheduleSection patientId={patient.id} patientName={patient.fullName} />
-        <MedicationLogSection schedules={sampleSchedules} logs={logs} now={now} />
+        <MedicationLogSection patientId={patient.id} now={now} />
       </div>
     </main>
   );
