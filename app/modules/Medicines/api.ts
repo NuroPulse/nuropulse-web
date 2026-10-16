@@ -13,9 +13,6 @@ export const MEDICINES_PAGE_SIZE = 20;
 
 const MEDICINE_COLUMNS = "id, name, common_dosage, notes, created_by, created_by_name, created_at";
 
-// Honorifics that may precede a doctor's name; they are not a first name.
-const NAME_TITLES = new Set(["dr", "dr.", "drg", "drg.", "prof", "prof."]);
-
 type MedicineRow = Pick<
   Tables<"medicines">,
   "id" | "name" | "common_dosage" | "notes" | "created_by" | "created_by_name" | "created_at"
@@ -33,10 +30,9 @@ function toMedicine(row: MedicineRow): Medicine {
   };
 }
 
-// First word of the full name, skipping a leading title such as "dr.".
+// First word of the full name. Profile names never carry a title such as "dr.".
 export function getFirstName(fullName: string): string | null {
-  const words = fullName.trim().split(/\s+/).filter(Boolean);
-  return words.find((word) => !NAME_TITLES.has(word.toLowerCase())) ?? null;
+  return fullName.trim().split(/\s+/)[0] || null;
 }
 
 // Escapes the LIKE wildcards so a search for "50%" matches literally.
@@ -94,13 +90,14 @@ export async function addMedicine(input: NewMedicineInput): Promise<Medicine> {
   if (profileError) throw toMedicineFailure(profileError);
 
   // created_by is set by the backend; created_by_name is the label other doctors see.
+  const firstName = profile?.full_name ? getFirstName(profile.full_name) : null;
   const { data, error } = await supabase
     .from("medicines")
     .insert({
       name: input.name.trim(),
       common_dosage: input.commonDosage.trim(),
       notes: input.notes.trim() || null,
-      created_by_name: profile?.full_name ? getFirstName(profile.full_name) : null,
+      created_by_name: firstName ? `dr. ${firstName}` : null,
     })
     .select(MEDICINE_COLUMNS)
     .single();
