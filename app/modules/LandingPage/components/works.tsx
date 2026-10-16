@@ -4,22 +4,22 @@ import { Tulip } from "~/components/elements/tulip";
 const steps = [
   {
     number: 1,
-    image: "/assets/landing-page/placeholder.svg",
-    imageAlt: "Ponsel diletakkan di punggung tangan lansia yang rileks di atas meja",
+    image: "/assets/landing-page/welcome.webp",
+    imageAlt: "Ilustrasi ponsel yang menampilkan logo aplikasi NuroPulse",
     title: "Pengecekan singkat di ponsel",
     body: "Pasien meletakkan ponsel di punggung tangan yang rileks. Sensor ponsel merekam gerakan, lalu analisisnya berjalan langsung di perangkat.",
   },
   {
     number: 2,
-    image: "/assets/landing-page/placeholder.svg",
-    imageAlt: "Neurolog memberikan kode koneksi kepada pasien yang memasukkannya di ponsel",
+    image: "/assets/landing-page/result-tremor.webp",
+    imageAlt: "Ilustrasi gedung rumah sakit dan kalender jadwal",
     title: "Terhubung dengan dokter",
     body: "Dengan masukkan kode dari dokter, hasil pengecekan pasien langsung tersedia di dashboard neurolog. Juga tersedia pengingat jadwal obat yang membantu pasien minum obat tepat waktu, dan setiap dosis tercatat di log yang dapat dipantau dokter.",
   },
   {
     number: 3,
-    image: "/assets/landing-page/placeholder.svg",
-    imageAlt: "Dokter meninjau grafik tren pasien di laptop",
+    image: "/assets/landing-page/result-none.webp",
+    imageAlt: "Ilustrasi papan klip berisi daftar periksa dan kacamata",
     title: "Dokter memantau tren",
     body: "Hasil pengecekan tampil sebagai tren per pasien, berdampingan dengan jadwal dan riwayat minum obat, siap dibahas saat kontrol berikutnya.",
   },
@@ -64,7 +64,8 @@ export function Works() {
               src={step.image}
               alt={step.imageAlt}
               loading="lazy"
-              className="block aspect-4/3 w-full rounded-2xl border border-line bg-primary-50 object-cover md:col-span-5"
+              // Transparent illustrations: contained on a light tint so none of the art is cropped.
+              className="block aspect-4/3 w-full rounded-2xl border border-line bg-primary-50 object-contain md:col-span-5"
             />
           </li>
         ))}
