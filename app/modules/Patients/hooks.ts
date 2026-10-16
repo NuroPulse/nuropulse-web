@@ -1,12 +1,26 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getPatient, listMyPatients } from "./api";
-import type { PatientFailure, PatientListItem } from "./types";
+import {
+  createSchedule,
+  getPatient,
+  listMyPatients,
+  listSchedules,
+  stopSchedule,
+  updateSchedule,
+} from "./api";
+import type {
+  MedicationSchedule,
+  NewScheduleInput,
+  PatientFailure,
+  PatientListItem,
+  ScheduleChanges,
+} from "./types";
 
 export const patientQueryKeys = {
   all: ["patients"] as const,
   list: () => [...patientQueryKeys.all, "list"] as const,
   detail: (id: string) => [...patientQueryKeys.all, "detail", id] as const,
+  schedules: (id: string) => [...patientQueryKeys.all, "schedules", id] as const,
 };
 
 export function useMyPatients() {
@@ -20,5 +34,41 @@ export function usePatient(patientId: string) {
   return useQuery<PatientListItem | null, PatientFailure>({
     queryKey: patientQueryKeys.detail(patientId),
     queryFn: () => getPatient(patientId),
+  });
+}
+
+export function useSchedules(patientId: string) {
+  return useQuery<MedicationSchedule[], PatientFailure>({
+    queryKey: patientQueryKeys.schedules(patientId),
+    queryFn: () => listSchedules(patientId),
+  });
+}
+
+function useInvalidateSchedules(patientId: string) {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: patientQueryKeys.schedules(patientId) });
+}
+
+export function useAddSchedule(patientId: string) {
+  const invalidate = useInvalidateSchedules(patientId);
+  return useMutation<MedicationSchedule, PatientFailure, NewScheduleInput>({
+    mutationFn: (input) => createSchedule(patientId, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateSchedule(patientId: string) {
+  const invalidate = useInvalidateSchedules(patientId);
+  return useMutation<MedicationSchedule, PatientFailure, { scheduleId: string; changes: ScheduleChanges }>({
+    mutationFn: ({ scheduleId, changes }) => updateSchedule(scheduleId, changes),
+    onSuccess: invalidate,
+  });
+}
+
+export function useStopSchedule(patientId: string) {
+  const invalidate = useInvalidateSchedules(patientId);
+  return useMutation<MedicationSchedule, PatientFailure, string>({
+    mutationFn: stopSchedule,
+    onSuccess: invalidate,
   });
 }

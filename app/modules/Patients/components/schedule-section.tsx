@@ -1,49 +1,59 @@
 import { Calendar, CircleStop, Clock, Pencil, Pill, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 import { formatClockTime, formatDateOnly } from "~/lib/date";
-import type { MedicationSchedule, NewScheduleInput } from "../types";
+import { useSchedules } from "../hooks";
+import type { MedicationSchedule } from "../types";
 import { AddScheduleDialog } from "./add-schedule-dialog";
 import { EditScheduleDialog } from "./edit-schedule-dialog";
 import { StopScheduleDialog } from "./stop-schedule-dialog";
 
 type ScheduleSectionProps = {
+  patientId: string;
   patientName: string;
-  // Active schedules only.
-  schedules: MedicationSchedule[];
-  onAdd: (input: NewScheduleInput, medicineName: string) => void;
-  onUpdate: (scheduleId: string, changes: { endDate: string | null; instructions: string | null }) => void;
-  onStop: (scheduleId: string) => void;
 };
 
-export function ScheduleSection({ patientName, schedules, onAdd, onUpdate, onStop }: ScheduleSectionProps) {
+export function ScheduleSection({ patientId, patientName }: ScheduleSectionProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<MedicationSchedule | null>(null);
   const [stopping, setStopping] = useState<MedicationSchedule | null>(null);
+  const schedulesQuery = useSchedules(patientId);
 
-  return (
-    <section
-      id="jadwal-obat"
-      aria-labelledby="jadwal-obat-title"
-      className="scroll-mt-6 rounded-2xl border border-line bg-surface-raised p-6"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="jadwal-obat-title" className="text-sh7 text-ink">
-            Jadwal Obat
-          </h2>
-          <p className="text-b9 text-ink-muted">Jadwal aktif yang Anda atur untuk pasien ini</p>
-        </div>
-        <Button type="button" onClick={() => setAddOpen(true)} className="h-11 gap-2 px-5 text-sh8">
-          <Plus aria-hidden="true" className="size-4.5" />
-          Tambah Jadwal
+  let body: ReactNode;
+
+  if (schedulesQuery.isPending) {
+    body = (
+      <div aria-busy="true" className="mt-4 flex flex-col gap-3">
+        <span className="sr-only">Memuat…</span>
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  } else if (schedulesQuery.isError) {
+    body = (
+      <div role="alert" className="mt-6 flex flex-col items-start gap-3">
+        <p className="text-b8 text-ink">
+          {schedulesQuery.error.code === "network"
+            ? "Tidak ada koneksi internet. Coba lagi."
+            : "Terjadi kesalahan. Silakan coba lagi."}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => schedulesQuery.refetch()}
+          className="h-10 px-4 text-sh8"
+        >
+          Coba lagi
         </Button>
       </div>
-
-      {schedules.length === 0 ? (
-        <p className="mt-6 text-b8 text-ink-muted">Belum ada jadwal obat aktif untuk pasien ini.</p>
-      ) : (
+    );
+  } else {
+    const schedules = schedulesQuery.data.filter((schedule) => schedule.isActive);
+    body = schedules.length === 0 ? (
+      <p className="mt-6 text-b8 text-ink-muted">Belum ada jadwal obat aktif untuk pasien ini.</p>
+    ) : (
         <ul className="mt-4 divide-y divide-line">
           {schedules.map((schedule) => (
             <li key={schedule.id} className="flex flex-wrap items-start gap-4 py-5">
@@ -109,15 +119,42 @@ export function ScheduleSection({ patientName, schedules, onAdd, onUpdate, onSto
             </li>
           ))}
         </ul>
-      )}
+    );
+  }
 
-      <AddScheduleDialog open={addOpen} onOpenChange={setAddOpen} patientName={patientName} onSubmit={onAdd} />
-      <EditScheduleDialog schedule={editing} onClose={() => setEditing(null)} onSubmit={onUpdate} />
+  return (
+    <section
+      id="jadwal-obat"
+      aria-labelledby="jadwal-obat-title"
+      className="scroll-mt-6 rounded-2xl border border-line bg-surface-raised p-6"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="jadwal-obat-title" className="text-sh7 text-ink">
+            Jadwal Obat
+          </h2>
+          <p className="text-b9 text-ink-muted">Jadwal aktif yang Anda atur untuk pasien ini</p>
+        </div>
+        <Button type="button" onClick={() => setAddOpen(true)} className="h-11 gap-2 px-5 text-sh8">
+          <Plus aria-hidden="true" className="size-4.5" />
+          Tambah Jadwal
+        </Button>
+      </div>
+
+      {body}
+
+      <AddScheduleDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        patientId={patientId}
+        patientName={patientName}
+      />
+      <EditScheduleDialog patientId={patientId} schedule={editing} onClose={() => setEditing(null)} />
       <StopScheduleDialog
+        patientId={patientId}
         schedule={stopping}
         patientName={patientName}
         onClose={() => setStopping(null)}
-        onConfirm={onStop}
       />
     </section>
   );

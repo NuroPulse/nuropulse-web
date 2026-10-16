@@ -1,16 +1,40 @@
 import type { Tables } from "~/lib/database.types";
 import { supabase } from "~/lib/supabase";
-import { PatientFailure, type PatientListItem } from "./types";
+import {
+  PatientFailure,
+  type MedicationSchedule,
+  type NewScheduleInput,
+  type PatientListItem,
+  type ScheduleChanges,
+} from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Kepatuhan check-in window (CLAUDE.md Section 10).
 const CHECK_IN_WINDOW_DAYS = 7;
 
+// Postgres codes come back from Supabase, not the contract names
+// (CLAUDE.md Section 4, "Backend error codes").
 function toPatientFailure(error: unknown): PatientFailure {
   if (typeof navigator !== "undefined" && !navigator.onLine) return new PatientFailure("network");
   // fetch() rejects with a TypeError when the network is unreachable.
   if (error instanceof TypeError) return new PatientFailure("network");
-  return new PatientFailure("unknown");
+  if (typeof error !== "object" || error === null) return new PatientFailure("unknown");
+
+  const code = "code" in error ? error.code : undefined;
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  switch (code) {
+    case "42501":
+      return new PatientFailure("forbidden");
+    case "23514":
+      // The violated check constraint is named in the message.
+      if (message.includes("time")) return new PatientFailure("schedule_invalid_times");
+      if (message.includes("date") || message.includes("range")) {
+        return new PatientFailure("schedule_invalid_range");
+      }
+      return new PatientFailure("unknown");
+    default:
+      return new PatientFailure("unknown");
+  }
 }
 
 // Local calendar days (the doctor's time zone) with at least one measurement, ÷ 7.
@@ -117,4 +141,102 @@ export async function getPatient(patientId: string): Promise<PatientListItem | n
 
   const recentByPatient = await listRecentMeasuredAts([data.id]);
   return toPatientListItem(data, recentByPatient.get(data.id) ?? []);
+}
+
+const SCHEDULE_COLUMNS =
+  "id, patient_id, medicine_id, dose, times, start_date, end_date, instructions, is_active, updated_at, medicine:medicines(name)";
+
+type ScheduleRow = Pick<
+  Tables<"medication_schedules">,
+  | "id"
+  | "patient_id"
+  | "medicine_id"
+  | "dose"
+  | "times"
+  | "start_date"
+  | "end_date"
+  | "instructions"
+  | "is_active"
+  | "updated_at"
+> & { medicine: { name: string } | null };
+
+function toMedicationSchedule(row: ScheduleRow): MedicationSchedule {
+  return {
+    id: row.id,
+    patientId: row.patient_id,
+    medicineId: row.medicine_id,
+    // medicine_id is a required foreign key, so the name is only missing if RLS hides the row.
+    medicineName: row.medicine?.name ?? "—",
+    dose: row.dose,
+    times: row.times,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    instructions: row.instructions,
+    isActive: row.is_active,
+    updatedAt: row.updated_at,
+  };
+}
+
+// Every schedule of the patient, active and stopped: the medication log needs stopped ones to
+// name past doses.
+export async function listSchedules(patientId: string): Promise<MedicationSchedule[]> {
+  const { data, error } = await supabase
+    .from("medication_schedules")
+    .select(SCHEDULE_COLUMNS)
+    .eq("patient_id", patientId)
+    .order("created_at", { ascending: true });
+  if (error) throw toPatientFailure(error);
+  return data.map(toMedicationSchedule);
+}
+
+export async function createSchedule(patientId: string, input: NewScheduleInput): Promise<MedicationSchedule> {
+  const doctorId = await getSignedInDoctorId();
+  // The generated types require the timestamps on insert (the columns have no default).
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("medication_schedules")
+    .insert({
+      patient_id: patientId,
+      doctor_id: doctorId,
+      medicine_id: input.medicineId,
+      dose: input.dose.trim(),
+      times: input.times,
+      start_date: input.startDate,
+      end_date: input.endDate || null,
+      instructions: input.instructions.trim() || null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(SCHEDULE_COLUMNS)
+    .single();
+  if (error) throw toPatientFailure(error);
+  return toMedicationSchedule(data);
+}
+
+// RLS turns an update of someone else's schedule into "0 rows changed" rather than an error,
+// so an empty result is reported as forbidden.
+async function patchSchedule(
+  scheduleId: string,
+  patch: { end_date?: string | null; instructions?: string | null; is_active?: boolean },
+): Promise<MedicationSchedule> {
+  const { data, error } = await supabase
+    .from("medication_schedules")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", scheduleId)
+    .select(SCHEDULE_COLUMNS)
+    .maybeSingle();
+  if (error) throw toPatientFailure(error);
+  if (!data) throw new PatientFailure("forbidden");
+  return toMedicationSchedule(data);
+}
+
+export function updateSchedule(scheduleId: string, changes: ScheduleChanges): Promise<MedicationSchedule> {
+  return patchSchedule(scheduleId, { end_date: changes.endDate, instructions: changes.instructions });
+}
+
+// Schedules are never deleted; stopping keeps past logs pointing at the right dose.
+export function stopSchedule(scheduleId: string): Promise<MedicationSchedule> {
+  return patchSchedule(scheduleId, { is_active: false });
 }

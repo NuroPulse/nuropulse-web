@@ -21,7 +21,14 @@ export type PatientListItem = {
   checkInCompliance: number;
 };
 
-export type PatientErrorCode = "network" | "unknown";
+// The schedule codes come from the contract (CLAUDE.md Section 4); RLS cannot tell
+// patient_not_connected from forbidden, so both arrive as "forbidden".
+export type PatientErrorCode =
+  | "network"
+  | "forbidden"
+  | "schedule_invalid_times"
+  | "schedule_invalid_range"
+  | "unknown";
 
 // Typed error thrown by api.ts; the UI maps `code` to Indonesian text.
 export class PatientFailure extends Error {
@@ -88,6 +95,12 @@ export type MedicationLog = {
   status: "taken" | "skipped";
   takenAt: string | null;
   loggedAt: string;
+};
+
+// The only fields that may change in place (CLAUDE.md Section 4).
+export type ScheduleChanges = {
+  endDate: string | null;
+  instructions: string | null;
 };
 
 export type NewScheduleInput = {

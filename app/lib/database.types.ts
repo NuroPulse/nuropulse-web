@@ -282,7 +282,7 @@ export type Database = {
           medicine_id: string
           patient_id: string
           start_date: string
-          times: string
+          times: string[]
           updated_at: string
         }
         Insert: {
@@ -296,7 +296,7 @@ export type Database = {
           medicine_id?: string
           patient_id?: string
           start_date: string
-          times: string
+          times: string[]
           updated_at: string
         }
         Update: {
@@ -310,7 +310,7 @@ export type Database = {
           medicine_id?: string
           patient_id?: string
           start_date?: string
-          times?: string
+          times?: string[]
           updated_at?: string
         }
         Relationships: [

@@ -1,7 +1,6 @@
 import { Activity, ArrowLeft, Calendar, Clock, Phone, Pill, Smartphone, TriangleAlert, User } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
-import { toast } from "sonner";
 
 import { ActivityStatusBadge } from "~/components/elements/activity-status-badge";
 import { FlagBadge, flagReasonText } from "~/components/elements/flag-badge";
@@ -12,7 +11,7 @@ import { toLocalDateKey } from "~/lib/medication";
 import { getActivityStatus } from "~/lib/patient-status";
 import { formatPhoneNumber } from "~/lib/phone";
 import { usePatient } from "../hooks";
-import type { Measurement, MedicationLog, MedicationSchedule, NewScheduleInput, PatientListItem } from "../types";
+import type { Measurement, MedicationLog, MedicationSchedule, PatientListItem } from "../types";
 import { MedicationLogSection } from "./medication-log-section";
 import { ScheduleSection } from "./schedule-section";
 import { TremorSection } from "./tremor-section";
@@ -152,16 +151,11 @@ export function PatientDetailPage() {
   const patientQuery = usePatient(patientId);
   const patient = patientQuery.data ?? null;
   const measurements = useMemo(() => (patient ? buildSampleMeasurements(patient) : []), [patient]);
-  const [schedules, setSchedules] = useState<MedicationSchedule[]>(() =>
-    patient ? buildSampleSchedules(patient, now) : [],
-  );
-  // The route stays mounted when moving between patients; start from that patient's schedules.
-  useEffect(() => {
-    setSchedules(patient ? buildSampleSchedules(patient, now) : []);
-  }, [patient, now]);
+  // TODO: the medication log still uses sample schedules and logs until medication_logs is wired.
+  const sampleSchedules = useMemo(() => (patient ? buildSampleSchedules(patient, now) : []), [patient, now]);
   const logs = useMemo(
-    () => (patient ? buildSampleLogs(patient, buildSampleSchedules(patient, now), now) : []),
-    [patient, now],
+    () => (patient ? buildSampleLogs(patient, sampleSchedules, now) : []),
+    [patient, sampleSchedules, now],
   );
 
   if (patientQuery.isPending) {
@@ -221,47 +215,6 @@ export function PatientDetailPage() {
 
   const status = getActivityStatus(patient, now);
   const latestModel = measurements[0]?.device.model;
-  const activeSchedules = schedules.filter((schedule) => schedule.isActive);
-
-  // Local state only until the backend is connected (TODO: backend team).
-  function addSchedule(input: NewScheduleInput, medicineName: string) {
-    const createdAt = new Date().toISOString();
-    setSchedules((current) => [
-      ...current,
-      {
-        id: `${patientId}-s${Date.now()}`,
-        patientId,
-        medicineId: input.medicineId,
-        medicineName,
-        dose: input.dose,
-        times: input.times,
-        startDate: input.startDate,
-        endDate: input.endDate || null,
-        instructions: input.instructions || null,
-        isActive: true,
-        updatedAt: createdAt,
-      },
-    ]);
-    toast.success("Jadwal ditambahkan.");
-  }
-
-  function updateSchedule(scheduleId: string, changes: { endDate: string | null; instructions: string | null }) {
-    setSchedules((current) =>
-      current.map((schedule) =>
-        schedule.id === scheduleId ? { ...schedule, ...changes, updatedAt: new Date().toISOString() } : schedule,
-      ),
-    );
-    toast.success("Jadwal diperbarui.");
-  }
-
-  function stopSchedule(scheduleId: string) {
-    setSchedules((current) =>
-      current.map((schedule) =>
-        schedule.id === scheduleId ? { ...schedule, isActive: false, updatedAt: new Date().toISOString() } : schedule,
-      ),
-    );
-    toast.success("Jadwal dihentikan.");
-  }
 
   return (
     <main className="px-6 py-8 lg:px-10 lg:py-10">
@@ -334,14 +287,8 @@ export function PatientDetailPage() {
 
       <div className="mt-6 flex flex-col gap-6">
         <TremorSection measurements={measurements} now={now} />
-        <ScheduleSection
-          patientName={patient.fullName}
-          schedules={activeSchedules}
-          onAdd={addSchedule}
-          onUpdate={updateSchedule}
-          onStop={stopSchedule}
-        />
-        <MedicationLogSection schedules={schedules} logs={logs} now={now} />
+        <ScheduleSection patientId={patient.id} patientName={patient.fullName} />
+        <MedicationLogSection schedules={sampleSchedules} logs={logs} now={now} />
       </div>
     </main>
   );

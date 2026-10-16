@@ -1,5 +1,6 @@
-import { Info } from "lucide-react";
+import { CircleAlert, Info, Loader2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -14,30 +15,40 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 import { isEndBeforeStart } from "~/lib/medication";
+import { useUpdateSchedule } from "../hooks";
+import { scheduleErrorText } from "../schedule-error-text";
 import type { MedicationSchedule } from "../types";
 
 const TEXT_MAX = 1000;
 
 type EditScheduleDialogProps = {
+  patientId: string;
   // The schedule being edited; null closes the dialog.
   schedule: MedicationSchedule | null;
   onClose: () => void;
-  onSubmit: (scheduleId: string, changes: { endDate: string | null; instructions: string | null }) => void;
 };
 
 // Only end_date and instructions may change in place (CLAUDE.md Section 4). A different
 // medicine, dose, or times means stopping this schedule and creating a new one.
-export function EditScheduleDialog({ schedule, onClose, onSubmit }: EditScheduleDialogProps) {
+export function EditScheduleDialog({ patientId, schedule, onClose }: EditScheduleDialogProps) {
   const [endDate, setEndDate] = useState("");
   const [instructions, setInstructions] = useState("");
   const [errors, setErrors] = useState<{ endDate?: string; instructions?: string }>({});
+  const updateSchedule = useUpdateSchedule(patientId);
+  const { reset: resetUpdate } = updateSchedule;
 
   useEffect(() => {
     if (!schedule) return;
     setEndDate(schedule.endDate ?? "");
     setInstructions(schedule.instructions ?? "");
     setErrors({});
-  }, [schedule]);
+    resetUpdate();
+  }, [schedule, resetUpdate]);
+
+  function handleOpenChange(open: boolean) {
+    // Keep the dialog open while saving so the result is not lost.
+    if (!open && !updateSchedule.isPending) onClose();
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,12 +60,22 @@ export function EditScheduleDialog({ schedule, onClose, onSubmit }: EditSchedule
     if (instructions.trim().length > TEXT_MAX) nextErrors.instructions = "Instruksi maksimal 1000 karakter.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    onSubmit(schedule.id, { endDate: endDate || null, instructions: instructions.trim() || null });
-    onClose();
+    updateSchedule.mutate(
+      {
+        scheduleId: schedule.id,
+        changes: { endDate: endDate || null, instructions: instructions.trim() || null },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Jadwal diperbarui.");
+          onClose();
+        },
+      },
+    );
   }
 
   return (
-    <Dialog open={schedule !== null} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={schedule !== null} onOpenChange={handleOpenChange}>
       <DialogContent className="gap-0 rounded-2xl p-6 sm:max-w-lg sm:p-7">
         <DialogHeader>
           <DialogTitle className="text-h5 text-primary-600">Ubah Jadwal</DialogTitle>
@@ -64,6 +85,16 @@ export function EditScheduleDialog({ schedule, onClose, onSubmit }: EditSchedule
         </DialogHeader>
 
         <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
+          {updateSchedule.error && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-danger bg-danger-soft p-3"
+            >
+              <CircleAlert aria-hidden="true" className="mt-0.5 size-4.5 shrink-0 text-danger" />
+              <p className="text-b8 text-danger">{scheduleErrorText(updateSchedule.error.code)}</p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-schedule-end" className="text-sh8 text-ink">
               Tanggal selesai <span className="text-b8 text-ink-muted">(opsional)</span>
@@ -128,11 +159,22 @@ export function EditScheduleDialog({ schedule, onClose, onSubmit }: EditSchedule
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <DialogClose asChild>
-              <Button type="button" variant="outline" className="h-11 px-5 text-sh8">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updateSchedule.isPending}
+                className="h-11 px-5 text-sh8"
+              >
                 Batal
               </Button>
             </DialogClose>
-            <Button type="submit" className="h-11 px-5 text-sh8">
+            <Button
+              type="submit"
+              disabled={updateSchedule.isPending}
+              aria-busy={updateSchedule.isPending}
+              className="h-11 gap-2 px-5 text-sh8"
+            >
+              {updateSchedule.isPending && <Loader2 aria-hidden="true" className="size-4.5 animate-spin" />}
               Simpan Perubahan
             </Button>
           </div>
