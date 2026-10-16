@@ -342,6 +342,7 @@ export type Database = {
           common_dosage: string
           created_at: string
           created_by: string | null
+          created_by_name?: string | null
           id: string
           name: string
           notes: string | null
@@ -351,6 +352,7 @@ export type Database = {
           common_dosage: string
           created_at?: string
           created_by?: string | null
+          created_by_name?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -360,6 +362,7 @@ export type Database = {
           common_dosage?: string
           created_at?: string
           created_by?: string | null
+          created_by_name?: string | null
           id?: string
           name?: string
           notes?: string | null

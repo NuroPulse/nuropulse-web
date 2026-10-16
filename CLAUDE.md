@@ -7,7 +7,7 @@ Status: draft v0.2 (2026-10-15).
 ### Changelog
 
 - **v0.2 (2026-10-15)**
-  - Doctor sign-up now asks for a phone number (WhatsApp), sent as `phone_number` in the sign-up metadata; `phone_number` is required for patients and doctors (Sections 2, 3, 4, 9, 10).
+  - Doctor sign-up now asks for a phone number (WhatsApp), sent as `phone` in the sign-up metadata; `phone` is required for patients and doctors (Sections 2, 3, 4, 9, 10).
   - New "Visual style" subsection in Section 7: follow the mobile app (light surfaces, cards, sparing blue, green accents, status boxes, shared decorations).
   - Section 8: wording for sign-up, login, the sidebar, and the Profile page; the connection code card is titled "Kode koneksi Anda".
   - Section 13: `npm run gen:types` to regenerate the Supabase types.
