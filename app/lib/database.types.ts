@@ -449,29 +449,32 @@ export type Database = {
       }
       patient_details: {
         Row: {
-          date_of_birth: string | null
-          diagnosis: string | null
+          connected_at: string | null
+          doctor_id: string | null
           email: string | null
-          gender: string | null
+          full_name: string | null
           id: string
+          last_measured_at: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
-          date_of_birth?: string | null
-          diagnosis?: string | null
+          connected_at?: string | null
+          doctor_id?: string | null
           email?: string | null
-          gender?: string | null
+          full_name?: string | null
           id: string
+          last_measured_at?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
-          date_of_birth?: string | null
-          diagnosis?: string | null
+          connected_at?: string | null
+          doctor_id?: string | null
           email?: string | null
-          gender?: string | null
+          full_name?: string | null
           id?: string
+          last_measured_at?: string | null
           phone?: string | null
           updated_at?: string
         }

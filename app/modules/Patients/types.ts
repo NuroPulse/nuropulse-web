@@ -9,8 +9,8 @@ export type PatientFlag = {
 export type PatientListItem = {
   id: string;
   fullName: string;
-  // International format, for example "+6281234567890".
-  phone: string;
+  // International format, for example "+6281234567890". null when the backend has none.
+  phone: string | null;
   connectedAt: string | null;
   // Most recent valid measurement (measured_at), or null if the patient never measured.
   lastMeasuredAt: string | null;
@@ -20,6 +20,19 @@ export type PatientListItem = {
   // Days with at least one measurement in the last 7 days ÷ 7.
   checkInCompliance: number;
 };
+
+export type PatientErrorCode = "network" | "unknown";
+
+// Typed error thrown by api.ts; the UI maps `code` to Indonesian text.
+export class PatientFailure extends Error {
+  readonly code: PatientErrorCode;
+
+  constructor(code: PatientErrorCode) {
+    super(code);
+    this.name = "PatientFailure";
+    this.code = code;
+  }
+}
 
 // Measurement (CLAUDE.md Section 4), mapped to camelCase. Only valid rest measurements reach
 // the web; a row without status or features is skipped by the mapper.

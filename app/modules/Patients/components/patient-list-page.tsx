@@ -6,6 +6,7 @@ import { ActivityStatusBadge } from "~/components/elements/activity-status-badge
 import { FlagBadge } from "~/components/elements/flag-badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Skeleton } from "~/components/ui/skeleton";
 import { formatDateTime } from "~/lib/date";
 import {
   getActivityStatus,
@@ -14,8 +15,8 @@ import {
   type ComplianceBucket,
 } from "~/lib/patient-status";
 import { formatPhoneNumber } from "~/lib/phone";
-import { buildSamplePatients } from "~/lib/sample-data";
 import { cn } from "~/lib/utils";
+import { useMyPatients } from "../hooks";
 
 const PAGE_SIZE = 20;
 
@@ -42,14 +43,11 @@ const selectClassName =
 export function PatientListPage() {
   // The status is computed once per visit so it does not shift while the doctor reads the list.
   const [now] = useState(() => new Date());
-  const patients = useMemo(() => {
-    const rows = buildSamplePatients(now).map((patient) => ({
-      ...patient,
-      status: getActivityStatus(patient, now),
-    }));
-    // Most recent measurement first; patients who never measured go last (CLAUDE.md Section 9).
-    return rows.sort((a, b) => (b.lastMeasuredAt ?? "").localeCompare(a.lastMeasuredAt ?? ""));
-  }, [now]);
+  const query = useMyPatients();
+  const patients = useMemo(
+    () => (query.data ?? []).map((patient) => ({ ...patient, status: getActivityStatus(patient, now) })),
+    [query.data, now],
+  );
 
   const [search, setSearch] = useState("");
   // Other pages can open a tab directly, for example /patients?status=no_check_in.
@@ -108,7 +106,29 @@ export function PatientListPage() {
 
   let body: ReactNode;
 
-  if (patients.length === 0) {
+  if (query.isPending) {
+    body = (
+      <div aria-busy="true" className="flex flex-col gap-3 p-4">
+        <span className="sr-only">Memuat…</span>
+        {Array.from({ length: 5 }, (_, index) => (
+          <Skeleton key={index} className="h-12 w-full" />
+        ))}
+      </div>
+    );
+  } else if (query.isError) {
+    body = (
+      <div role="alert" className="flex flex-col items-center gap-4 px-4 py-12 text-center">
+        <p className="text-b8 text-ink">
+          {query.error.code === "network"
+            ? "Tidak ada koneksi internet. Coba lagi."
+            : "Terjadi kesalahan. Silakan coba lagi."}
+        </p>
+        <Button type="button" variant="outline" onClick={() => query.refetch()} className="h-10 px-4 text-sh8">
+          Coba lagi
+        </Button>
+      </div>
+    );
+  } else if (patients.length === 0) {
     body = (
       <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
         <p className="text-b8 text-ink">Belum ada data.</p>
@@ -159,7 +179,7 @@ export function PatientListPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-b9 whitespace-nowrap text-ink-muted">
-                    {formatPhoneNumber(patient.phone)}
+                    {patient.phone ? formatPhoneNumber(patient.phone) : "Tidak tersedia"}
                   </td>
                   <td className="px-4 py-3">
                     <ActivityStatusBadge status={patient.status} />
