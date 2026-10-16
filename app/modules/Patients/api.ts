@@ -1,7 +1,9 @@
-import type { Tables } from "~/lib/database.types";
+import type { Json, Tables } from "~/lib/database.types";
 import { supabase } from "~/lib/supabase";
 import {
   PatientFailure,
+  type Measurement,
+  type MeasurementPage,
   type MedicationLog,
   type MedicationSchedule,
   type NewScheduleInput,
@@ -240,6 +242,125 @@ export function updateSchedule(scheduleId: string, changes: ScheduleChanges): Pr
 // Schedules are never deleted; stopping keeps past logs pointing at the right dose.
 export function stopSchedule(scheduleId: string): Promise<MedicationSchedule> {
   return patchSchedule(scheduleId, { is_active: false });
+}
+
+const MEASUREMENT_COLUMNS =
+  "id, measured_at, condition, duration_s, status, peak_frequency_hz, band_power_ratio, snr, band_rms_g, consistency, features, algo_version, device";
+
+// Longest trend range (3 Bulan).
+const TREND_WINDOW_DAYS = 90;
+export const MEASUREMENT_HISTORY_PAGE_SIZE = 10;
+
+type MeasurementRow = Pick<
+  Tables<"measurements">,
+  | "id"
+  | "measured_at"
+  | "condition"
+  | "duration_s"
+  | "status"
+  | "peak_frequency_hz"
+  | "band_power_ratio"
+  | "snr"
+  | "band_rms_g"
+  | "consistency"
+  | "features"
+  | "algo_version"
+  | "device"
+>;
+
+function readObject(value: Json | undefined): { [key: string]: Json | undefined } | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
+}
+
+function readNumber(value: Json | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readString(value: Json | undefined): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+// Returns null for a row the dashboard must not show: no status label or missing features
+// (CLAUDE.md Section 8). Features are read from the columns first, then from the features JSON.
+function toMeasurement(row: MeasurementRow): Measurement | null {
+  if (row.status !== "none" && row.status !== "tremor") return null;
+
+  const json = readObject(row.features ?? undefined);
+  const peakFrequencyHz = row.peak_frequency_hz ?? readNumber(json?.peak_frequency_hz);
+  const bandPowerRatio = row.band_power_ratio ?? readNumber(json?.band_power_ratio);
+  const snr = row.snr ?? readNumber(json?.snr);
+  const bandRmsG = row.band_rms_g ?? readNumber(json?.band_rms_g);
+  const consistency = row.consistency ?? readNumber(json?.consistency);
+  if (
+    peakFrequencyHz === null ||
+    bandPowerRatio === null ||
+    snr === null ||
+    bandRmsG === null ||
+    consistency === null
+  ) {
+    return null;
+  }
+
+  const device = readObject(row.device);
+  const os = device?.os;
+  return {
+    id: row.id,
+    measuredAt: row.measured_at,
+    condition: "rest",
+    durationS: row.duration_s,
+    status: row.status,
+    features: { peakFrequencyHz, bandPowerRatio, snr, bandRmsG, consistency },
+    algoVersion: row.algo_version,
+    device: {
+      model: readString(device?.model),
+      os: os === "android" || os === "ios" ? os : null,
+      appVersion: readString(device?.app_version),
+      effectiveSamplingHz: readNumber(device?.effective_sampling_hz),
+    },
+  };
+}
+
+function toMeasurements(rows: MeasurementRow[]): Measurement[] {
+  return rows.flatMap((row) => toMeasurement(row) ?? []);
+}
+
+// Shared filters: only rest checks with a status label, newest first by measured_at
+// (never uploaded_at, CLAUDE.md Section 9).
+function measurementsOf(patientId: string, options?: { count: "exact" }) {
+  return supabase
+    .from("measurements")
+    .select(MEASUREMENT_COLUMNS, options)
+    .eq("patient_id", patientId)
+    .eq("condition", "rest")
+    .in("status", ["none", "tremor"])
+    .order("measured_at", { ascending: false });
+}
+
+// The most recent showable measurement, however old.
+export async function getLatestMeasurement(patientId: string): Promise<Measurement | null> {
+  // A few rows, in case the newest ones lack features and are skipped.
+  const { data, error } = await measurementsOf(patientId).limit(5);
+  if (error) throw toPatientFailure(error);
+  return toMeasurements(data)[0] ?? null;
+}
+
+// Every measurement of the last 3 months, newest first; the trend filters 7 / 30 days from it.
+export async function listTrendMeasurements(patientId: string): Promise<Measurement[]> {
+  const since = new Date(Date.now() - TREND_WINDOW_DAYS * DAY_MS).toISOString();
+  const { data, error } = await measurementsOf(patientId).gte("measured_at", since);
+  if (error) throw toPatientFailure(error);
+  return toMeasurements(data);
+}
+
+// One page of the full measurement history, paginated in the query.
+export async function listMeasurementHistory(patientId: string, page: number): Promise<MeasurementPage> {
+  const start = (page - 1) * MEASUREMENT_HISTORY_PAGE_SIZE;
+  const { data, error, count } = await measurementsOf(patientId, { count: "exact" }).range(
+    start,
+    start + MEASUREMENT_HISTORY_PAGE_SIZE - 1,
+  );
+  if (error) throw toPatientFailure(error);
+  return { items: toMeasurements(data), total: count ?? data.length };
 }
 
 // Longest range the medication log shows (7 or 30 days).

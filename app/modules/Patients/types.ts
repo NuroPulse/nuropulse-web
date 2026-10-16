@@ -52,11 +52,12 @@ export type MeasurementFeatures = {
   consistency: number;
 };
 
+// device is free JSON in the database, so every key may be missing.
 export type MeasurementDevice = {
-  model: string;
-  os: "android" | "ios";
-  appVersion: string;
-  effectiveSamplingHz: number;
+  model: string | null;
+  os: "android" | "ios" | null;
+  appVersion: string | null;
+  effectiveSamplingHz: number | null;
 };
 
 export type Measurement = {
@@ -95,6 +96,11 @@ export type MedicationLog = {
   status: "taken" | "skipped";
   takenAt: string | null;
   loggedAt: string;
+};
+
+export type MeasurementPage = {
+  items: Measurement[];
+  total: number;
 };
 
 // The only fields that may change in place (CLAUDE.md Section 4).

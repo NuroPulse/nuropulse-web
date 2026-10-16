@@ -1,5 +1,5 @@
 import { Activity, ArrowLeft, Calendar, Clock, Phone, Pill, Smartphone, TriangleAlert, User } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { ActivityStatusBadge } from "~/components/elements/activity-status-badge";
@@ -9,66 +9,10 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { formatDateTime } from "~/lib/date";
 import { getActivityStatus } from "~/lib/patient-status";
 import { formatPhoneNumber } from "~/lib/phone";
-import { usePatient } from "../hooks";
-import type { Measurement, PatientListItem } from "../types";
+import { useLatestMeasurement, usePatient } from "../hooks";
 import { MedicationLogSection } from "./medication-log-section";
 import { ScheduleSection } from "./schedule-section";
 import { TremorSection } from "./tremor-section";
-
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
-
-// TODO: Replace measurements with a Supabase query.
-// Sample data only. Generated from the patient id so each patient always gets the same
-// history; times are relative to "now".
-
-function seededRandom(seed: string) {
-  let state = [...seed].reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0, 7);
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function buildSampleMeasurements(patient: PatientListItem): Measurement[] {
-  if (!patient.lastMeasuredAt) return [];
-  const random = seededRandom(`${patient.id}-measurements`);
-  const latest = new Date(patient.lastMeasuredAt).getTime();
-  const count = 40;
-  const spacing = (90 * DAY_MS) / (count - 1);
-
-  return Array.from({ length: count }, (_, index) => {
-    const measuredAt = index === 0 ? latest : latest - index * spacing + (random() - 0.5) * 6 * HOUR_MS;
-    const peakFrequencyHz = Math.round((4 + random() * 5) * 10) / 10;
-    const inBand = peakFrequencyHz >= 3.5 && peakFrequencyHz <= 7;
-    const status = inBand && random() < 0.8 ? "tremor" : "none";
-    return {
-      id: `${patient.id}-m${index}`,
-      measuredAt: new Date(measuredAt).toISOString(),
-      condition: "rest",
-      durationS: 10,
-      status,
-      features: {
-        peakFrequencyHz,
-        bandPowerRatio: Math.round((status === "tremor" ? 0.6 + random() * 0.3 : 0.2 + random() * 0.3) * 100) / 100,
-        snr: Math.round((status === "tremor" ? 40 + random() * 200 : 3 + random() * 10) * 100) / 100,
-        bandRmsG: Math.round((status === "tremor" ? 0.02 + random() * 0.02 : 0.004 + random() * 0.01) * 1000) / 1000,
-        consistency: Math.round((status === "tremor" ? 0.7 + random() * 0.3 : 0.2 + random() * 0.4) * 100) / 100,
-      },
-      algoVersion: "0.1.0",
-      // One phone change: the older half was measured on another model.
-      device: {
-        model: index < 18 ? "Pixel 7" : "Pixel 6a",
-        os: "android",
-        appVersion: "1.0.0",
-        effectiveSamplingHz: 100,
-      },
-    } satisfies Measurement;
-  });
-}
 
 const jumpLinks = [
   { href: "#tes-tremor", label: "Tes Tremor", icon: Activity },
@@ -82,7 +26,8 @@ export function PatientDetailPage() {
 
   const patientQuery = usePatient(patientId);
   const patient = patientQuery.data ?? null;
-  const measurements = useMemo(() => (patient ? buildSampleMeasurements(patient) : []), [patient]);
+  // Shares its cache with the tremor section's latest-measurement card.
+  const latestMeasurement = useLatestMeasurement(patientId);
 
   if (patientQuery.isPending) {
     return (
@@ -140,7 +85,7 @@ export function PatientDetailPage() {
   }
 
   const status = getActivityStatus(patient, now);
-  const latestModel = measurements[0]?.device.model;
+  const latestModel = latestMeasurement.data?.device.model;
 
   return (
     <main className="px-6 py-8 lg:px-10 lg:py-10">
@@ -212,7 +157,7 @@ export function PatientDetailPage() {
       </nav>
 
       <div className="mt-6 flex flex-col gap-6">
-        <TremorSection measurements={measurements} now={now} />
+        <TremorSection patientId={patient.id} now={now} />
         <ScheduleSection patientId={patient.id} patientName={patient.fullName} />
         <MedicationLogSection patientId={patient.id} now={now} />
       </div>

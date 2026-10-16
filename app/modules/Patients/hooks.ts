@@ -1,15 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createSchedule,
+  getLatestMeasurement,
   getPatient,
+  listMeasurementHistory,
   listMedicationLogs,
+  listTrendMeasurements,
   listMyPatients,
   listSchedules,
   stopSchedule,
   updateSchedule,
 } from "./api";
 import type {
+  Measurement,
+  MeasurementPage,
   MedicationLog,
   MedicationSchedule,
   NewScheduleInput,
@@ -24,7 +29,35 @@ export const patientQueryKeys = {
   detail: (id: string) => [...patientQueryKeys.all, "detail", id] as const,
   schedules: (id: string) => [...patientQueryKeys.all, "schedules", id] as const,
   medicationLogs: (id: string) => [...patientQueryKeys.all, "medication-logs", id] as const,
+  measurements: (id: string) => [...patientQueryKeys.all, "measurements", id] as const,
+  latestMeasurement: (id: string) => [...patientQueryKeys.measurements(id), "latest"] as const,
+  trendMeasurements: (id: string) => [...patientQueryKeys.measurements(id), "trend"] as const,
+  measurementHistory: (id: string, page: number) =>
+    [...patientQueryKeys.measurements(id), "history", page] as const,
 };
+
+export function useLatestMeasurement(patientId: string) {
+  return useQuery<Measurement | null, PatientFailure>({
+    queryKey: patientQueryKeys.latestMeasurement(patientId),
+    queryFn: () => getLatestMeasurement(patientId),
+  });
+}
+
+export function useTrendMeasurements(patientId: string) {
+  return useQuery<Measurement[], PatientFailure>({
+    queryKey: patientQueryKeys.trendMeasurements(patientId),
+    queryFn: () => listTrendMeasurements(patientId),
+  });
+}
+
+export function useMeasurementHistory(patientId: string, page: number) {
+  return useQuery<MeasurementPage, PatientFailure>({
+    queryKey: patientQueryKeys.measurementHistory(patientId, page),
+    queryFn: () => listMeasurementHistory(patientId, page),
+    // Keep the current page visible while the next one loads.
+    placeholderData: keepPreviousData,
+  });
+}
 
 export function useMyPatients() {
   return useQuery<PatientListItem[], PatientFailure>({
