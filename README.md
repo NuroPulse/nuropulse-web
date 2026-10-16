@@ -65,3 +65,18 @@ app/
 public/assets/    # Images, logo
 ```
 
+## Preview
+### Landing page
+<img width="2880" height="1644" alt="nuropulse-dashboard vercel app_ (1)" src="https://github.com/user-attachments/assets/914845f8-026e-4462-8a9a-afb2a1b798a8" />
+
+### Dashboard
+<img width="2880" height="1644" alt="nuropulse-dashboard vercel app_dashboard" src="https://github.com/user-attachments/assets/26339aa4-8350-4b88-a461-308bec9d7be9" />
+
+### Daftar Pasien
+<img width="2880" height="1644" alt="nuropulse-dashboard vercel app_patients" src="https://github.com/user-attachments/assets/7ca9d8d9-56a4-42a1-929e-d35dd720241d" />
+
+### Detail Pasien
+<img width="2880" height="1644" alt="nuropulse-dashboard vercel app_patients_b370ce1c-a50a-4577-8de4-a4d91ed62b4d_dummy-trend" src="https://github.com/user-attachments/assets/1b468909-0733-4ab4-9b92-a2ae5f31552a" />
+
+### Daftar Obat
+<img width="2880" height="1644" alt="nuropulse-dashboard vercel app_medicines" src="https://github.com/user-attachments/assets/183ff442-70de-4c8f-9534-e7a74e899db3" />
