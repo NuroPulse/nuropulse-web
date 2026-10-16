@@ -43,6 +43,11 @@ export function formatDateTime(isoTimestamp: string): string {
 
 const dayMonthFormatter = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" });
 
+// "15 Okt"
+export function formatDayMonth(date: Date): string {
+  return dayMonthFormatter.format(date);
+}
+
 // "15 Okt, 07.00"
 export function formatDayMonthTime(date: Date): string {
   return `${dayMonthFormatter.format(date)}, ${timeFormatter.format(date)}`;

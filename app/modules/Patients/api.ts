@@ -415,10 +415,11 @@ export async function listMeasurementHistory(patientId: string, page: number): P
   return { items: toMeasurements(data), total: count ?? data.length };
 }
 
-// Longest range the medication log shows (7 or 30 days).
-const MEDICATION_LOG_WINDOW_DAYS = 30;
+// Longest range that reads the medication log: the log table (7 or 30 days) and the dose strip
+// under the tremor trend (up to 3 Bulan).
+const MEDICATION_LOG_WINDOW_DAYS = 90;
 
-// The patient's answered doses of the last 30 days. Written by mobile only; the web reads them.
+// The patient's answered doses of the last 90 days. Written by mobile only; the web reads them.
 // "Terlewat" is not stored: it is derived from schedules and logs in the component.
 export async function listMedicationLogs(patientId: string): Promise<MedicationLog[]> {
   const since = new Date(Date.now() - MEDICATION_LOG_WINDOW_DAYS * DAY_MS).toISOString();

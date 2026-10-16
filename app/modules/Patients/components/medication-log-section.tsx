@@ -1,14 +1,14 @@
-import { CircleCheck, CircleMinus, CircleX, Clock, type LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { TablePagination } from "~/components/elements/table-pagination";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatDayMonthTime, formatTimeOnly } from "~/lib/date";
-import { deriveDoses, getMedicationCompliance, toHistorySchedules, type DoseStatus } from "~/lib/medication";
+import { deriveDoses, getMedicationCompliance, toHistorySchedules } from "~/lib/medication";
 import { formatPercent } from "~/lib/number";
 import { getComplianceBucket, type ComplianceBucket } from "~/lib/patient-status";
 import { cn } from "~/lib/utils";
+import { doseStatusStyles } from "../dose-status";
 import { useMedicationLogs, useSchedules } from "../hooks";
 import type { MedicationLog, MedicationSchedule } from "../types";
 
@@ -16,13 +16,6 @@ const PAGE_SIZE = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type LogRange = 7 | 30;
-
-const doseStatusStyles: Record<DoseStatus, { label: string; icon: LucideIcon; className: string }> = {
-  taken: { label: "Diminum", icon: CircleCheck, className: "bg-secondary-50 text-secondary-700" },
-  skipped: { label: "Dilewati", icon: CircleMinus, className: "bg-surface-sunken text-ink-muted" },
-  missed: { label: "Terlewat", icon: CircleX, className: "bg-warning-soft text-warning" },
-  pending: { label: "Menunggu", icon: Clock, className: "bg-primary-50 text-primary-700" },
-};
 
 const bucketLabels: Record<ComplianceBucket, string> = { good: "Baik", fair: "Sedang", low: "Rendah" };
 

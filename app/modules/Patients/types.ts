@@ -117,3 +117,25 @@ export type NewScheduleInput = {
   endDate: string;
   instructions: string;
 };
+
+// A dose on the tremor trend's dose strip. Pending doses are not drawn.
+export type AnsweredDoseStatus = "taken" | "skipped" | "missed";
+
+export type DoseMarker = {
+  // Where the marker sits: taken_at for a taken dose, otherwise the scheduled time.
+  time: number;
+  status: AnsweredDoseStatus;
+  scheduledAt: Date;
+  takenAt: Date | null;
+  medicineName: string;
+};
+
+// A switch marked on the trend: phone model (amplitude is only comparable on one model) or
+// algorithm version (results of different versions must not be silently mixed).
+export type TrendChange = {
+  kind: "model" | "algo";
+  // The model or version before the switch, and the one from `measuredAt` on.
+  previous: string;
+  value: string;
+  measuredAt: string;
+};

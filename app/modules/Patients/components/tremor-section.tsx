@@ -1,4 +1,4 @@
-import { ChartLine, Info, Smartphone } from "lucide-react";
+import { Cpu, FlaskConical, Info, Smartphone } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { TablePagination } from "~/components/elements/table-pagination";
@@ -6,12 +6,22 @@ import { TremorStatusBadge } from "~/components/elements/tremor-status-badge";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatDateOnly, formatDateTime } from "~/lib/date";
 import { formatDecimal } from "~/lib/number";
-import { toLocalDateKey } from "~/lib/medication";
+import { deriveDoses, toHistorySchedules, toLocalDateKey } from "~/lib/medication";
 import { cn } from "~/lib/utils";
 import { MEASUREMENT_HISTORY_PAGE_SIZE } from "../api";
-import { useLatestMeasurement, useMeasurementHistory, useTrendMeasurements } from "../hooks";
-import type { Measurement } from "../types";
+import {
+  useLatestMeasurement,
+  useMeasurementHistory,
+  useMedicationLogs,
+  useSchedules,
+  useTrendMeasurements,
+} from "../hooks";
+import { buildDummyDoses, buildDummyMeasurements } from "../trend-dummy";
+import type { DoseMarker, Measurement, TrendChange } from "../types";
 import { QueryError } from "./query-error";
+import { TremorTrendChart } from "./tremor-trend-chart";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 type TrendRange = "7d" | "30d" | "3m";
 
@@ -35,30 +45,71 @@ export function TremorSection({ patientId, now }: TremorSectionProps) {
   const latestQuery = useLatestMeasurement(patientId);
   const trendQuery = useTrendMeasurements(patientId);
   const historyQuery = useMeasurementHistory(patientId, historyPage);
+  // Shared with the medication log section through the query cache.
+  const schedulesQuery = useSchedules(patientId);
+  const logsQuery = useMedicationLogs(patientId);
 
-  const trendMeasurements = trendQuery.data ?? noMeasurements;
+  // TEMPORARY: preview the trend with dummy data via `?dummy-trend`, also on the deployed site,
+  // always behind the "Data contoh" banner below so it is never mistaken for patient data.
+  const showDummyTrend = new URLSearchParams(window.location.search).has("dummy-trend");
+  const dummyMeasurements = useMemo(() => (showDummyTrend ? buildDummyMeasurements(now) : null), [showDummyTrend, now]);
+
+  const trendMeasurements = dummyMeasurements ?? trendQuery.data ?? noMeasurements;
   const rangeDays = trendRanges.find((option) => option.value === range)?.days ?? 30;
-  const inRange = useMemo(() => {
-    const from = now.getTime() - rangeDays * 24 * 60 * 60 * 1000;
-    return trendMeasurements.filter((measurement) => new Date(measurement.measuredAt).getTime() >= from);
-  }, [trendMeasurements, now, rangeDays]);
+  const from = useMemo(() => new Date(now.getTime() - rangeDays * DAY_MS), [now, rangeDays]);
+  const inRange = useMemo(
+    () => trendMeasurements.filter((measurement) => new Date(measurement.measuredAt) >= from),
+    [trendMeasurements, from],
+  );
 
-  // Amplitude is only comparable on the same phone model, so model changes are called out
-  // (CLAUDE.md Section 2). Walk oldest → newest and note each switch; an unknown model is
-  // not a switch.
-  const modelChanges = useMemo(() => {
-    const changes: { model: string; measuredAt: string }[] = [];
+  // Amplitude is only comparable on the same phone model, and results of different algorithm
+  // versions must not be silently mixed, so both switches are marked (CLAUDE.md Sections 2
+  // and 10). Walk oldest → newest and note each switch; an unknown model is not a switch.
+  const changes = useMemo(() => {
+    const found: TrendChange[] = [];
     let previousModel: string | null = null;
+    let previousAlgo: string | null = null;
     for (const measurement of [...inRange].reverse()) {
       const model = measurement.device.model;
-      if (!model) continue;
-      if (previousModel && previousModel !== model) {
-        changes.push({ model, measuredAt: measurement.measuredAt });
+      if (model) {
+        if (previousModel && previousModel !== model) {
+          found.push({ kind: "model", previous: previousModel, value: model, measuredAt: measurement.measuredAt });
+        }
+        previousModel = model;
       }
-      previousModel = model;
+      if (previousAlgo && previousAlgo !== measurement.algoVersion) {
+        found.push({
+          kind: "algo",
+          previous: previousAlgo,
+          value: measurement.algoVersion,
+          measuredAt: measurement.measuredAt,
+        });
+      }
+      previousAlgo = measurement.algoVersion;
     }
-    return changes;
+    return found;
   }, [inRange]);
+
+  // Answered and missed doses in the range, placed where they happened; pending doses are not
+  // drawn yet. All schedules, stopped ones included, so past doses keep their place.
+  const doses = useMemo((): DoseMarker[] | null => {
+    if (showDummyTrend) return buildDummyDoses(from, now);
+    if (!schedulesQuery.data || !logsQuery.data) return null;
+    const medicineNames = new Map(schedulesQuery.data.map((schedule) => [schedule.id, schedule.medicineName]));
+    return deriveDoses(toHistorySchedules(schedulesQuery.data), logsQuery.data, from, now).flatMap((dose) =>
+      dose.status === "pending"
+        ? []
+        : [
+            {
+              time: (dose.takenAt ?? dose.scheduledAt).getTime(),
+              status: dose.status,
+              scheduledAt: dose.scheduledAt,
+              takenAt: dose.takenAt,
+              medicineName: medicineNames.get(dose.scheduleId) ?? "",
+            },
+          ],
+    );
+  }, [showDummyTrend, schedulesQuery.data, logsQuery.data, from, now]);
 
   let latestCard: ReactNode;
   if (latestQuery.isPending) {
@@ -105,7 +156,7 @@ export function TremorSection({ patientId, now }: TremorSectionProps) {
   }
 
   let trendBody: ReactNode;
-  if (trendQuery.isPending) {
+  if (trendQuery.isPending && !showDummyTrend) {
     trendBody = (
       <div aria-busy="true" className="mt-5">
         <span className="sr-only">Memuat…</span>
@@ -114,28 +165,47 @@ export function TremorSection({ patientId, now }: TremorSectionProps) {
     );
   } else if (trendQuery.isError) {
     trendBody = <QueryError failure={trendQuery.error} onRetry={() => trendQuery.refetch()} className="mt-5" />;
+  } else if (inRange.length === 0) {
+    trendBody = <p className="mt-5 text-b8 text-ink-muted">Belum ada pengukuran dalam rentang ini.</p>;
   } else {
     trendBody = (
       <>
-        {/* TODO: render the peak-frequency trend chart here (shadcn chart / Recharts): points
-            for `inRange` (filled = status "tremor", hollow = "none"), the 3.5–7 Hz band as a
-            reference area, a dashed marker at each entry of `modelChanges`, and the daily dose
-            strip below the time axis. */}
-        <div className="mt-5 flex min-h-56 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line-strong bg-surface px-4 py-10 text-center">
-          <ChartLine aria-hidden="true" className="size-8 text-primary-300" />
-          <p className="text-sh8 text-ink">Grafik tren akan ditampilkan di sini.</p>
-          <p className="text-b9 text-ink-muted">
-            {inRange.length} pengukuran dalam rentang ini · pita tremor 3,5–7 Hz sebagai acuan
-          </p>
-        </div>
+        <TremorTrendChart
+          measurements={inRange}
+          doses={doses}
+          changes={changes}
+          from={from}
+          now={now}
+          rangeDays={rangeDays}
+        />
+        {/* The chart still renders while the doses load; only the strip waits. */}
+        {(schedulesQuery.isPending || logsQuery.isPending) && (
+          <div aria-busy="true" className="mt-2">
+            <span className="sr-only">Memuat…</span>
+            <Skeleton className="h-8 w-full rounded-lg" />
+          </div>
+        )}
+        {schedulesQuery.isError && (
+          <QueryError failure={schedulesQuery.error} onRetry={() => schedulesQuery.refetch()} className="mt-3" />
+        )}
+        {!schedulesQuery.isError && logsQuery.isError && (
+          <QueryError failure={logsQuery.error} onRetry={() => logsQuery.refetch()} className="mt-3" />
+        )}
 
-        {modelChanges.map((change) => (
-          <p key={change.measuredAt} className="mt-3 flex items-center gap-2 text-b9 text-ink-muted">
-            <Smartphone aria-hidden="true" className="size-4 shrink-0 text-primary-600" />
-            Ganti ponsel: {change.model} sejak {formatDateOnly(toLocalDateKey(new Date(change.measuredAt)))}.
-            Amplitudo hanya sebanding pada model ponsel yang sama.
-          </p>
-        ))}
+        {changes.map((change) => {
+          const since = formatDateOnly(toLocalDateKey(new Date(change.measuredAt)));
+          return change.kind === "model" ? (
+            <p key={`model-${change.measuredAt}`} className="mt-3 flex items-center gap-2 text-b9 text-ink-muted">
+              <Smartphone aria-hidden="true" className="size-4 shrink-0 text-primary-600" />
+              Ganti ponsel: {change.value} sejak {since}. Amplitudo hanya sebanding pada model ponsel yang sama.
+            </p>
+          ) : (
+            <p key={`algo-${change.measuredAt}`} className="mt-3 flex items-center gap-2 text-b9 text-ink-muted">
+              <Cpu aria-hidden="true" className="size-4 shrink-0 text-primary-600" />
+              Versi algoritma berubah: {change.value} sejak {since}.
+            </p>
+          );
+        })}
       </>
     );
   }
@@ -261,6 +331,19 @@ export function TremorSection({ patientId, now }: TremorSectionProps) {
             ))}
           </div>
         </div>
+        {/* Cannot be dismissed: the dummy trend sits on a real patient's page. */}
+        {showDummyTrend && (
+          <div role="note" className="mt-5 flex items-start gap-3 rounded-2xl border border-warning bg-warning-soft p-4">
+            <FlaskConical aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-warning" />
+            <div>
+              <p className="text-sh8 text-ink">Data contoh, bukan data pasien</p>
+              <p className="text-b9 text-ink-muted">
+                Grafik tren dan strip dosis di bawah memakai data buatan untuk pratinjau. Hapus
+                ?dummy-trend dari alamat halaman untuk melihat data pasien.
+              </p>
+            </div>
+          </div>
+        )}
         {trendBody}
       </div>
 
