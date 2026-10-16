@@ -6,11 +6,12 @@ import { toast } from "sonner";
 import { ActivityStatusBadge } from "~/components/elements/activity-status-badge";
 import { FlagBadge, flagReasonText } from "~/components/elements/flag-badge";
 import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 import { formatDateTime } from "~/lib/date";
 import { toLocalDateKey } from "~/lib/medication";
 import { getActivityStatus } from "~/lib/patient-status";
 import { formatPhoneNumber } from "~/lib/phone";
-import { buildSamplePatients } from "~/lib/sample-data";
+import { usePatient } from "../hooks";
 import type { Measurement, MedicationLog, MedicationSchedule, NewScheduleInput, PatientListItem } from "../types";
 import { MedicationLogSection } from "./medication-log-section";
 import { ScheduleSection } from "./schedule-section";
@@ -19,8 +20,8 @@ import { TremorSection } from "./tremor-section";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-// TODO: Replace with Supabase query (backend team).
-// Sample data only. Generated from the patient id so each sample patient always gets the same
+// TODO: Replace measurements, schedules, and logs with Supabase queries.
+// Sample data only. Generated from the patient id so each patient always gets the same
 // history; times are relative to "now".
 
 function seededRandom(seed: string) {
@@ -148,10 +149,8 @@ export function PatientDetailPage() {
   const { patientId = "" } = useParams();
   const [now] = useState(() => new Date());
 
-  const patient = useMemo(
-    () => buildSamplePatients(now).find((candidate) => candidate.id === patientId) ?? null,
-    [now, patientId],
-  );
+  const patientQuery = usePatient(patientId);
+  const patient = patientQuery.data ?? null;
   const measurements = useMemo(() => (patient ? buildSampleMeasurements(patient) : []), [patient]);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>(() =>
     patient ? buildSampleSchedules(patient, now) : [],
@@ -164,6 +163,48 @@ export function PatientDetailPage() {
     () => (patient ? buildSampleLogs(patient, buildSampleSchedules(patient, now), now) : []),
     [patient, now],
   );
+
+  if (patientQuery.isPending) {
+    return (
+      <main aria-busy="true" className="px-6 py-8 lg:px-10 lg:py-10">
+        <span className="sr-only">Memuat…</span>
+        <Skeleton className="h-5 w-48" />
+        <div className="mt-6 flex items-start gap-5 rounded-2xl border border-line bg-surface-raised p-6">
+          <Skeleton className="size-16 rounded-full" />
+          <div className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+        </div>
+        <Skeleton className="mt-6 h-64 w-full rounded-2xl" />
+      </main>
+    );
+  }
+
+  if (patientQuery.isError) {
+    return (
+      <main className="px-6 py-8 lg:px-10 lg:py-10">
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-4 rounded-2xl border border-line bg-surface-raised p-6"
+        >
+          <p className="text-b8 text-ink">
+            {patientQuery.error.code === "network"
+              ? "Tidak ada koneksi internet. Coba lagi."
+              : "Terjadi kesalahan. Silakan coba lagi."}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => patientQuery.refetch()}
+            className="h-10 px-4 text-sh8"
+          >
+            Coba lagi
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   if (!patient) {
     return (
@@ -256,7 +297,7 @@ export function PatientDetailPage() {
           <p className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-b9 text-ink-muted">
             <span className="inline-flex items-center gap-1.5">
               <Phone aria-hidden="true" className="size-3.5" />
-              {formatPhoneNumber(patient.phone)}
+              {patient.phone ? formatPhoneNumber(patient.phone) : "Tidak tersedia"}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock aria-hidden="true" className="size-3.5" />

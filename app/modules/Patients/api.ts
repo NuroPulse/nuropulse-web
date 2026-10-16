@@ -1,3 +1,4 @@
+import type { Tables } from "~/lib/database.types";
 import { supabase } from "~/lib/supabase";
 import { PatientFailure, type PatientListItem } from "./types";
 
@@ -44,19 +45,48 @@ async function listRecentMeasuredAts(patientIds: string[]): Promise<Map<string, 
   return byPatient;
 }
 
+const PATIENT_COLUMNS = "id, full_name, phone, connected_at, last_measured_at";
+
+type PatientRow = Pick<
+  Tables<"patient_details">,
+  "id" | "full_name" | "phone" | "connected_at" | "last_measured_at"
+>;
+
+// Returns null for a row without a name, which cannot be shown.
+function toPatientListItem(row: PatientRow, recentMeasuredAts: string[]): PatientListItem | null {
+  if (!row.full_name) return null;
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    phone: row.phone,
+    connectedAt: row.connected_at,
+    lastMeasuredAt: row.last_measured_at,
+    // TODO(backend): read from the patient_flags view once it exists (CLAUDE.md Section 10).
+    flag: null,
+    // TODO: compute from medication_schedules and medication_logs once their schema is fixed.
+    medicationCompliance: null,
+    checkInCompliance: getCheckInCompliance(recentMeasuredAts),
+  };
+}
+
+async function getSignedInDoctorId(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw toPatientFailure(error);
+  const doctorId = data.session?.user.id;
+  // The app layout guard only renders patient pages for a signed-in doctor.
+  if (!doctorId) throw new PatientFailure("unknown");
+  return doctorId;
+}
+
 // All patients connected to the signed-in doctor, most recent measurement first, read from the
 // patient_details table. RLS is the security boundary; the doctor_id filter only narrows the
 // rows the backend already allows.
 export async function listMyPatients(): Promise<PatientListItem[]> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw toPatientFailure(sessionError);
-  const doctorId = sessionData.session?.user.id;
-  // The app layout guard only renders this page for a signed-in doctor.
-  if (!doctorId) throw new PatientFailure("unknown");
+  const doctorId = await getSignedInDoctorId();
 
   const { data, error } = await supabase
     .from("patient_details")
-    .select("id, full_name, phone, connected_at, last_measured_at")
+    .select(PATIENT_COLUMNS)
     .eq("doctor_id", doctorId)
     // Never-measured patients go last (CLAUDE.md Section 9).
     .order("last_measured_at", { ascending: false, nullsFirst: false });
@@ -66,22 +96,25 @@ export async function listMyPatients(): Promise<PatientListItem[]> {
   // measurements cannot be embedded and are read in a second query.
   const recentByPatient = await listRecentMeasuredAts(data.map((row) => row.id));
 
-  return data.flatMap((row): PatientListItem[] => {
-    // A row without a name cannot be shown.
-    if (!row.full_name) return [];
-    return [
-      {
-        id: row.id,
-        fullName: row.full_name,
-        phone: row.phone,
-        connectedAt: row.connected_at,
-        lastMeasuredAt: row.last_measured_at,
-        // TODO(backend): read from the patient_flags view once it exists (CLAUDE.md Section 10).
-        flag: null,
-        // TODO: compute from medication_schedules and medication_logs once their schema is fixed.
-        medicationCompliance: null,
-        checkInCompliance: getCheckInCompliance(recentByPatient.get(row.id) ?? []),
-      },
-    ];
-  });
+  return data.flatMap((row) => toPatientListItem(row, recentByPatient.get(row.id) ?? []) ?? []);
+}
+
+// One patient connected to the signed-in doctor; null when the id is unknown or the patient
+// is not connected to this doctor.
+export async function getPatient(patientId: string): Promise<PatientListItem | null> {
+  const doctorId = await getSignedInDoctorId();
+
+  const { data, error } = await supabase
+    .from("patient_details")
+    .select(PATIENT_COLUMNS)
+    .eq("id", patientId)
+    .eq("doctor_id", doctorId)
+    .maybeSingle();
+  // 22P02: the id in the URL is not a valid uuid, so no such patient exists.
+  if (error?.code === "22P02") return null;
+  if (error) throw toPatientFailure(error);
+  if (!data) return null;
+
+  const recentByPatient = await listRecentMeasuredAts([data.id]);
+  return toPatientListItem(data, recentByPatient.get(data.id) ?? []);
 }
