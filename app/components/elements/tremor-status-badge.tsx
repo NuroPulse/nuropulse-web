@@ -3,7 +3,7 @@ import { Activity, CircleMinus } from "lucide-react";
 import type { MeasurementStatus } from "~/lib/patient-status";
 import { cn } from "~/lib/utils";
 
-// The single place that maps a measurement status to its label (CLAUDE.md Section 8).
+// The single place that maps a measurement status to its label.
 // Neutral badges only, never red or green, and always text plus an icon. The labels describe
 // one measurement, never the patient.
 const statusStyles = {

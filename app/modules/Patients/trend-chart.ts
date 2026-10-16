@@ -1,6 +1,6 @@
 import type { ChartConfig } from "~/components/ui/chart";
 
-// The tremor band from the data contract (CLAUDE.md Section 10), drawn as a reference only.
+// The tremor band from the data contract, drawn as a reference only.
 export const TREMOR_BAND_HZ = { from: 3.5, to: 7 };
 // Keeps the band and some headroom in view when every point sits low.
 export const MIN_Y_MAX_HZ = 10;

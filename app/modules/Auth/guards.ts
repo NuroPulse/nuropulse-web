@@ -5,7 +5,7 @@ import { getProfile, getSession, signOut } from "./api";
 import { clearProfileCache, profileQueryKeys } from "./hooks";
 import type { Profile } from "./types";
 
-// The only place that decides who may enter the dashboard (CLAUDE.md Section 9).
+// The only place that decides who may enter the dashboard.
 // Route clientLoaders call these; components never check the session themselves.
 
 function fetchProfile(userId: string) {

@@ -129,7 +129,7 @@ export async function addMedicine(input: NewMedicineInput): Promise<Medicine> {
 }
 
 // Postgres codes come back from Supabase, not the contract names
-// (CLAUDE.md Section 4, "Backend error codes").
+// (data contract, "Backend error codes").
 export function toMedicineFailure(error: unknown): MedicineFailure {
   if (typeof navigator !== "undefined" && !navigator.onLine) return new MedicineFailure("network");
   // fetch() rejects with a TypeError when the network is unreachable.

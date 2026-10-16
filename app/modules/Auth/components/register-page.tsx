@@ -43,6 +43,7 @@ function serverErrorText(code: AuthErrorCode): string {
   }
 }
 
+// Same as the login page: md:text-b7 overrides the Input's md:text-sm.
 const inputClassName = "h-11 px-3 text-b7 md:text-b7";
 
 export function RegisterPage() {
@@ -57,6 +58,7 @@ export function RegisterPage() {
 
   function updateField(field: Field, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
+    // A field's error disappears as soon as it is edited; the rest stay until the next submit.
     setErrors(({ [field]: _cleared, ...rest }) => rest);
   }
 
@@ -72,6 +74,8 @@ export function RegisterPage() {
     <AuthLayout>
       <h1 className="text-center text-h4 tracking-tight text-primary-600">Daftar sebagai dokter</h1>
 
+      {/* noValidate: the browser's own messages are not in Indonesian, so validateSignUp
+          checks the fields instead. */}
       <form noValidate onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
         {signUp.error && (
           <div

@@ -50,6 +50,8 @@ export function ScheduleSection({ patientId, patientName }: ScheduleSectionProps
       </div>
     );
   } else {
+    // The query also returns stopped schedules, which the medication log needs for past doses;
+    // this card lists only the ones still running.
     const schedules = schedulesQuery.data.filter((schedule) => schedule.isActive);
     body = schedules.length === 0 ? (
       <p className="mt-6 text-b8 text-ink-muted">Belum ada jadwal obat aktif untuk pasien ini.</p>

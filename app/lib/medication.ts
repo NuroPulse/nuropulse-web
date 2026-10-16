@@ -1,4 +1,4 @@
-// Shared medication schedule rules (CLAUDE.md Section 4, "Medication models", and Section 10).
+// Shared medication schedule rules (data contract, "Medication models").
 // Pure functions: "now" is passed in so the 2-hour missed rule can be unit-tested.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -103,7 +103,7 @@ export function medicationComplianceRatio(entries: DoseEntry[]): number | null {
   return counted.filter((entry) => entry.status === "taken").length / counted.length;
 }
 
-// Window of Kepatuhan obat and of the medication flag (CLAUDE.md Section 10).
+// Window of Kepatuhan obat and of the medication flag.
 export const MEDICATION_COMPLIANCE_WINDOW_DAYS = 7;
 
 export type ScheduleWithHistory = ScheduleForDoses & {

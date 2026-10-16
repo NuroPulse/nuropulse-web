@@ -14,11 +14,11 @@ import {
 } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Flags and both compliance measures look at the last 7 days (CLAUDE.md Section 10).
+// Flags and both compliance measures look at the last 7 days.
 const RECENT_WINDOW_DAYS = 7;
 
 // Postgres codes come back from Supabase, not the contract names
-// (CLAUDE.md Section 4, "Backend error codes").
+// (data contract, "Backend error codes").
 function toPatientFailure(error: unknown): PatientFailure {
   if (typeof navigator !== "undefined" && !navigator.onLine) return new PatientFailure("network");
   // fetch() rejects with a TypeError when the network is unreachable.
@@ -122,9 +122,9 @@ async function listRecentActivity(patientIds: string[], now: Date): Promise<Map<
   return byPatient;
 }
 
-// Flags and compliance are computed here, when the data is read (CLAUDE.md Section 10), so
-// they follow new data and the passing of time without anything stored. Returns null for a
-// row without a name, which cannot be shown.
+// Flags and compliance are computed here, when the data is read, so they follow new data and
+// the passing of time without anything stored. Returns null for a row without a name, which
+// cannot be shown.
 function toPatientListItem(row: PatientRow, activity: RecentActivity, now: Date): PatientListItem | null {
   if (!row.full_name) return null;
   const medicationCompliance = getMedicationCompliance(activity.schedules, activity.logs, now);
@@ -172,7 +172,7 @@ export async function listMyPatients(): Promise<PatientListItem[]> {
     .from("patient_details")
     .select(PATIENT_COLUMNS)
     .eq("doctor_id", doctorId)
-    // Never-measured patients go last (CLAUDE.md Section 9).
+    // Never-measured patients go last.
     .order("last_measured_at", { ascending: false, nullsFirst: false });
   if (error) throw toPatientFailure(error);
   return toPatientListItems(data);
@@ -332,8 +332,8 @@ function readString(value: Json | undefined): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-// Returns null for a row the dashboard must not show: no status label or missing features
-// (CLAUDE.md Section 8). Features are read from the columns first, then from the features JSON.
+// Returns null for a row the dashboard must not show: no status label or missing features.
+// Features are read from the columns first, then from the features JSON.
 function toMeasurement(row: MeasurementRow): Measurement | null {
   if (row.status !== "none" && row.status !== "tremor") return null;
 
@@ -377,7 +377,7 @@ function toMeasurements(rows: MeasurementRow[]): Measurement[] {
 }
 
 // Shared filters: only rest checks with a status label, newest first by measured_at
-// (never uploaded_at, CLAUDE.md Section 9).
+// (never uploaded_at).
 function measurementsOf(patientId: string, options?: { count: "exact" }) {
   return supabase
     .from("measurements")

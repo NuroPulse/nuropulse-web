@@ -34,7 +34,7 @@ type DoseStripProps = {
 const STRIP_MARGIN = { ...TREND_CHART_MARGIN, top: 2, bottom: 2 };
 
 // Doses on the same time axis as the measurements, so tremor can be read next to medication
-// timing (CLAUDE.md Section 10). The shape tells the status apart, not colour alone.
+// timing. The shape tells the status apart, not colour alone.
 export function DoseStrip({ doses, domain, radius, layout }: DoseStripProps) {
   if (doses === null) return null;
   if (doses.length === 0) {

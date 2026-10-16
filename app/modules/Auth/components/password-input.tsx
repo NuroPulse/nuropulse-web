@@ -3,6 +3,7 @@ import { useState, type ComponentProps } from "react";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 
+// The type is owned by the show/hide toggle, so callers cannot pass one.
 type PasswordInputProps = Omit<ComponentProps<typeof Input>, "type">;
 
 export function PasswordInput({ className, ...props }: PasswordInputProps) {
@@ -10,6 +11,7 @@ export function PasswordInput({ className, ...props }: PasswordInputProps) {
 
   return (
     <div className="relative">
+      {/* pr-11 keeps the typed text clear of the toggle button on the right. */}
       <Input {...props} type={visible ? "text" : "password"} className={cn("pr-11", className)} />
       <button
         type="button"

@@ -15,6 +15,7 @@ function errorText(failure: MedicineFailure) {
 }
 
 export function MedicineDetailPage() {
+  // The route always has :medicineId; the fallback only satisfies the optional param type.
   const { medicineId = "" } = useParams();
   const medicine = useMedicine(medicineId);
   const usage = useMedicineUsage(medicineId);

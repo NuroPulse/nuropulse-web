@@ -1,6 +1,6 @@
 import type { MedicineFieldErrors, NewMedicineInput } from "./types";
 
-// Limits from CLAUDE.md Section 4 (Medicine).
+// Limits from the data contract (Medicine).
 export const MEDICINE_NAME_MAX = 120;
 export const MEDICINE_TEXT_MAX = 1000;
 

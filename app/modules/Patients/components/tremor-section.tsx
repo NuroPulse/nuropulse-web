@@ -63,8 +63,8 @@ export function TremorSection({ patientId, now }: TremorSectionProps) {
   );
 
   // Amplitude is only comparable on the same phone model, and results of different algorithm
-  // versions must not be silently mixed, so both switches are marked (CLAUDE.md Sections 2
-  // and 10). Walk oldest → newest and note each switch; an unknown model is not a switch.
+  // versions must not be silently mixed, so both switches are marked. Walk oldest → newest and
+  // note each switch; an unknown model is not a switch.
   const changes = useMemo(() => {
     const found: TrendChange[] = [];
     let previousModel: string | null = null;

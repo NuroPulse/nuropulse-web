@@ -15,13 +15,13 @@ export type PatientListItem = {
   // Most recent valid measurement (measured_at), or null if the patient never measured.
   lastMeasuredAt: string | null;
   flag: PatientFlag | null;
-  // Last 7 days, 0–1 (CLAUDE.md Section 10). null: no scheduled dose in the window.
+  // Last 7 days, 0–1. null: no scheduled dose in the window.
   medicationCompliance: number | null;
   // Days with at least one measurement in the last 7 days ÷ 7.
   checkInCompliance: number;
 };
 
-// The schedule codes come from the contract (CLAUDE.md Section 4); RLS cannot tell
+// The schedule codes come from the data contract; RLS cannot tell
 // patient_not_connected from forbidden, so both arrive as "forbidden".
 export type PatientErrorCode =
   | "network"
@@ -41,7 +41,7 @@ export class PatientFailure extends Error {
   }
 }
 
-// Measurement (CLAUDE.md Section 4), mapped to camelCase. Only valid rest measurements reach
+// Measurement (data contract), mapped to camelCase. Only valid rest measurements reach
 // the web; a row without status or features is skipped by the mapper.
 
 export type MeasurementFeatures = {
@@ -103,7 +103,7 @@ export type MeasurementPage = {
   total: number;
 };
 
-// The only fields that may change in place (CLAUDE.md Section 4).
+// The only fields that may change in place (data contract).
 export type ScheduleChanges = {
   endDate: string | null;
   instructions: string | null;

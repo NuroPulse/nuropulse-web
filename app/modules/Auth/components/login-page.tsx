@@ -33,6 +33,8 @@ function serverErrorText(code: AuthErrorCode): string {
   }
 }
 
+// The md: variant is repeated on purpose: the shadcn Input switches to text-sm from md up, and
+// only a variant of the same breakpoint overrides it.
 const inputClassName = "h-11 px-3 text-b7 md:text-b7";
 
 export function LoginPage() {
@@ -41,11 +43,14 @@ export function LoginPage() {
   const [errors, setErrors] = useState<FieldErrors<Field>>({});
   const signIn = useSignIn();
 
+  // Set by the dashboard guard after it signs out a non-doctor account.
   const notDoctor = searchParams.get("reason") === "not-doctor";
+  // Set after sign-up when Supabase returns no session, so the doctor signs in here.
   const registered = searchParams.get("registered") === "1";
 
   function updateField(field: Field, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
+    // A field's error disappears as soon as it is edited; the rest stay until the next submit.
     setErrors(({ [field]: _cleared, ...rest }) => rest);
   }
 
@@ -85,6 +90,8 @@ export function LoginPage() {
         </div>
       )}
 
+      {/* noValidate: the browser's own messages are not in Indonesian, so validateSignIn
+          checks the fields instead. */}
       <form noValidate onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
         {signIn.error && (
           <div

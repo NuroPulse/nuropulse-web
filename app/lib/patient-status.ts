@@ -1,5 +1,5 @@
-// Shared patient status logic (CLAUDE.md Section 10). Pure functions: "now" is passed in so
-// the edges can be unit-tested. Labels live in the badge components, not here.
+// Shared patient status logic. Pure functions: "now" is passed in so the edges can be
+// unit-tested. Labels live in the badge components, not here.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,13 +29,13 @@ export function getActivityStatus({ lastMeasuredAt, connectedAt }: ActivityInput
   return sinceConnected < INACTIVE_AFTER_DAYS * DAY_MS ? "no_measurement" : "inactive";
 }
 
-// Why a patient is flagged "Perlu ditinjau" (CLAUDE.md Section 10). Computed on the web when
-// the data is read, from the backend's measurement status and the medication log.
+// Why a patient is flagged "Perlu ditinjau". Computed on the web when the data is read, from
+// the backend's measurement status and the medication log.
 export type FlagReason =
   | { kind: "tremor_pattern"; detectedCount: number }
   | { kind: "medication_compliance" };
 
-// Measurement status, filled by a backend trigger (CLAUDE.md Section 4). The web never
+// Measurement status, filled by a backend trigger (data contract). The web never
 // derives it from features.
 export type MeasurementStatus = "none" | "tremor";
 
@@ -50,7 +50,7 @@ export function getComplianceBucket(ratio: number | null): ComplianceBucket | nu
   return "low";
 }
 
-// Flag and Kepatuhan check-in windows (CLAUDE.md Section 10).
+// Flag and Kepatuhan check-in windows.
 export const FLAG_WINDOW_DAYS = 7;
 export const FLAG_RECENT_MEASUREMENTS = 5;
 export const FLAG_TREMOR_MIN = 3;

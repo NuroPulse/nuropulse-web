@@ -45,6 +45,8 @@ export function useAddMedicine() {
   const queryClient = useQueryClient();
   return useMutation<Medicine, MedicineFailure, NewMedicineInput>({
     mutationFn: addMedicine,
+    // A new medicine only changes the lists (every page and search); no detail or usage query
+    // can be cached for it yet.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: medicineQueryKeys.lists() }),
   });
 }

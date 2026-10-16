@@ -207,6 +207,7 @@ export function MedicineListPage() {
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
+            // The current page number may not exist in the new results.
             setPage(1);
           }}
           className="h-9 bg-surface-raised pl-9 text-b8 md:text-b8"

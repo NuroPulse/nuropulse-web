@@ -52,7 +52,7 @@ type AppSidebarProps = {
 };
 
 // Receives the doctor's name and sign-out from the layout route: components/ never
-// import from modules/ (CLAUDE.md Section 6).
+// import from modules/.
 export function AppSidebar({ doctorName, onSignOut, signingOut = false }: AppSidebarProps) {
   const { state, isMobile, toggleSidebar } = useSidebar();
   const { pathname } = useLocation();

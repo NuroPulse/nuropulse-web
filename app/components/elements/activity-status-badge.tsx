@@ -3,7 +3,7 @@ import { CircleCheck, CircleDashed, CircleMinus, Clock, type LucideIcon } from "
 import type { ActivityStatus } from "~/lib/patient-status";
 import { cn } from "~/lib/utils";
 
-// The single place that turns an activity status into its label (CLAUDE.md Section 8).
+// The single place that turns an activity status into its label.
 // Always text plus an icon, never colour alone.
 const statusStyles: Record<ActivityStatus, { label: string; icon: LucideIcon; className: string }> = {
   active: {

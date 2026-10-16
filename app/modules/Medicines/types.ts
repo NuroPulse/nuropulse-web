@@ -1,7 +1,7 @@
 export type Medicine = {
   id: string;
   name: string;
-  // Free-text reference only; never the dose a patient takes (CLAUDE.md Section 4).
+  // Free-text reference only; never the dose a patient takes (data contract).
   commonDosage: string;
   notes: string | null;
   createdBy: string | null;

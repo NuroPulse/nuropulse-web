@@ -28,7 +28,7 @@ type EditScheduleDialogProps = {
   onClose: () => void;
 };
 
-// Only end_date and instructions may change in place (CLAUDE.md Section 4). A different
+// Only end_date and instructions may change in place (data contract). A different
 // medicine, dose, or times means stopping this schedule and creating a new one.
 export function EditScheduleDialog({ patientId, schedule, onClose }: EditScheduleDialogProps) {
   const [endDate, setEndDate] = useState("");
