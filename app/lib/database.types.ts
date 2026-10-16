@@ -452,6 +452,7 @@ export type Database = {
           connected_at: string | null
           doctor_id: string | null
           email: string | null
+          flag: Json | null
           full_name: string | null
           id: string
           last_measured_at: string | null
@@ -462,6 +463,7 @@ export type Database = {
           connected_at?: string | null
           doctor_id?: string | null
           email?: string | null
+          flag?: Json | null
           full_name?: string | null
           id: string
           last_measured_at?: string | null
@@ -472,6 +474,7 @@ export type Database = {
           connected_at?: string | null
           doctor_id?: string | null
           email?: string | null
+          flag?: Json | null
           full_name?: string | null
           id?: string
           last_measured_at?: string | null

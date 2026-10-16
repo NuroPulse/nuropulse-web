@@ -1,4 +1,6 @@
 import type { Json, Tables } from "~/lib/database.types";
+import { getMedicationCompliance, type DoseLog, type ScheduleWithHistory } from "~/lib/medication";
+import { getCheckInCompliance, getPatientFlag, type StatusMeasurement } from "~/lib/patient-status";
 import { supabase } from "~/lib/supabase";
 import {
   PatientFailure,
@@ -12,8 +14,8 @@ import {
 } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Kepatuhan check-in window (CLAUDE.md Section 10).
-const CHECK_IN_WINDOW_DAYS = 7;
+// Flags and both compliance measures look at the last 7 days (CLAUDE.md Section 10).
+const RECENT_WINDOW_DAYS = 7;
 
 // Postgres codes come back from Supabase, not the contract names
 // (CLAUDE.md Section 4, "Backend error codes").
@@ -40,38 +42,6 @@ function toPatientFailure(error: unknown): PatientFailure {
   }
 }
 
-// Local calendar days (the doctor's time zone) with at least one measurement, ÷ 7.
-// A rolling 7 × 24 h window can touch 8 calendar days, so the ratio is capped at 1.
-function getCheckInCompliance(measuredAts: string[]): number {
-  const days = new Set(
-    measuredAts.map((measuredAt) => {
-      const date = new Date(measuredAt);
-      return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-    }),
-  );
-  return Math.min(1, days.size / CHECK_IN_WINDOW_DAYS);
-}
-
-// Measured-at times of the last 7 days per patient, for Kepatuhan check-in.
-async function listRecentMeasuredAts(patientIds: string[]): Promise<Map<string, string[]>> {
-  const byPatient = new Map<string, string[]>();
-  if (patientIds.length === 0) return byPatient;
-
-  const since = new Date(Date.now() - CHECK_IN_WINDOW_DAYS * DAY_MS).toISOString();
-  const { data, error } = await supabase
-    .from("measurements")
-    .select("patient_id, measured_at")
-    .in("patient_id", patientIds)
-    .gte("measured_at", since);
-  if (error) throw toPatientFailure(error);
-
-  for (const { patient_id, measured_at } of data) {
-    if (!patient_id) continue;
-    byPatient.set(patient_id, [...(byPatient.get(patient_id) ?? []), measured_at]);
-  }
-  return byPatient;
-}
-
 const PATIENT_COLUMNS = "id, full_name, phone, connected_at, last_measured_at";
 
 type PatientRow = Pick<
@@ -79,21 +49,108 @@ type PatientRow = Pick<
   "id" | "full_name" | "phone" | "connected_at" | "last_measured_at"
 >;
 
-// Returns null for a row without a name, which cannot be shown.
-function toPatientListItem(row: PatientRow, recentMeasuredAts: string[]): PatientListItem | null {
+// What the flag and compliance rules need for one patient.
+type RecentActivity = {
+  measurements: StatusMeasurement[];
+  schedules: ScheduleWithHistory[];
+  logs: DoseLog[];
+};
+
+function emptyActivity(): RecentActivity {
+  return { measurements: [], schedules: [], logs: [] };
+}
+
+// The last 7 days of measurements and medication logs, plus every schedule, for all given
+// patients in three queries (never one query per patient). measurements.patient_id references
+// profiles, not patient_details, so this cannot be embedded in the patient query.
+async function listRecentActivity(patientIds: string[], now: Date): Promise<Map<string, RecentActivity>> {
+  const byPatient = new Map<string, RecentActivity>(patientIds.map((id) => [id, emptyActivity()]));
+  if (patientIds.length === 0) return byPatient;
+
+  const since = new Date(now.getTime() - RECENT_WINDOW_DAYS * DAY_MS).toISOString();
+  // Log times come from the patient's device clock; a day of margin keeps a slightly early
+  // scheduled_at from dropping out of the window.
+  const logsSince = new Date(now.getTime() - (RECENT_WINDOW_DAYS + 1) * DAY_MS).toISOString();
+
+  const [measurements, schedules, logs] = await Promise.all([
+    supabase
+      .from("measurements")
+      .select("patient_id, measured_at, status")
+      .in("patient_id", patientIds)
+      .eq("condition", "rest")
+      .in("status", ["none", "tremor"])
+      .gte("measured_at", since),
+    // A patient has few schedules over their lifetime, and stopped ones still count for the
+    // days before they were stopped.
+    supabase
+      .from("medication_schedules")
+      .select("id, patient_id, times, start_date, end_date, is_active, updated_at")
+      .in("patient_id", patientIds),
+    supabase
+      .from("medication_logs")
+      .select("patient_id, schedule_id, scheduled_at, status, taken_at")
+      .in("patient_id", patientIds)
+      .gte("scheduled_at", logsSince),
+  ]);
+  if (measurements.error) throw toPatientFailure(measurements.error);
+  if (schedules.error) throw toPatientFailure(schedules.error);
+  if (logs.error) throw toPatientFailure(logs.error);
+
+  for (const row of measurements.data) {
+    if (!row.patient_id || (row.status !== "none" && row.status !== "tremor")) continue;
+    byPatient.get(row.patient_id)?.measurements.push({ measuredAt: row.measured_at, status: row.status });
+  }
+  for (const row of schedules.data) {
+    byPatient.get(row.patient_id)?.schedules.push({
+      id: row.id,
+      times: row.times,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      isActive: row.is_active,
+      updatedAt: row.updated_at,
+    });
+  }
+  for (const row of logs.data) {
+    if (row.status !== "taken" && row.status !== "skipped") continue;
+    byPatient.get(row.patient_id)?.logs.push({
+      scheduleId: row.schedule_id,
+      scheduledAt: row.scheduled_at,
+      status: row.status,
+      takenAt: row.status === "taken" ? row.taken_at : null,
+    });
+  }
+  return byPatient;
+}
+
+// Flags and compliance are computed here, when the data is read (CLAUDE.md Section 10), so
+// they follow new data and the passing of time without anything stored. Returns null for a
+// row without a name, which cannot be shown.
+function toPatientListItem(row: PatientRow, activity: RecentActivity, now: Date): PatientListItem | null {
   if (!row.full_name) return null;
+  const medicationCompliance = getMedicationCompliance(activity.schedules, activity.logs, now);
+  const flagReason = getPatientFlag({ measurements: activity.measurements, medicationCompliance }, now);
   return {
     id: row.id,
     fullName: row.full_name,
     phone: row.phone,
     connectedAt: row.connected_at,
     lastMeasuredAt: row.last_measured_at,
-    // TODO(backend): read from the patient_flags view once it exists (CLAUDE.md Section 10).
-    flag: null,
-    // TODO: compute from medication_schedules and medication_logs once their schema is fixed.
-    medicationCompliance: null,
-    checkInCompliance: getCheckInCompliance(recentMeasuredAts),
+    flag: flagReason ? { reason: flagReason } : null,
+    medicationCompliance,
+    checkInCompliance: getCheckInCompliance(
+      activity.measurements.map((measurement) => measurement.measuredAt),
+      now,
+    ),
   };
+}
+
+async function toPatientListItems(rows: PatientRow[]): Promise<PatientListItem[]> {
+  const now = new Date();
+  const activity = await listRecentActivity(
+    rows.map((row) => row.id),
+    now,
+  );
+  return rows.flatMap((row) => toPatientListItem(row, activity.get(row.id) ?? emptyActivity(), now) ?? []);
 }
 
 async function getSignedInDoctorId(): Promise<string> {
@@ -118,12 +175,7 @@ export async function listMyPatients(): Promise<PatientListItem[]> {
     // Never-measured patients go last (CLAUDE.md Section 9).
     .order("last_measured_at", { ascending: false, nullsFirst: false });
   if (error) throw toPatientFailure(error);
-
-  // measurements.patient_id references profiles, not patient_details, so the recent
-  // measurements cannot be embedded and are read in a second query.
-  const recentByPatient = await listRecentMeasuredAts(data.map((row) => row.id));
-
-  return data.flatMap((row) => toPatientListItem(row, recentByPatient.get(row.id) ?? []) ?? []);
+  return toPatientListItems(data);
 }
 
 // One patient connected to the signed-in doctor; null when the id is unknown or the patient
@@ -142,8 +194,8 @@ export async function getPatient(patientId: string): Promise<PatientListItem | n
   if (error) throw toPatientFailure(error);
   if (!data) return null;
 
-  const recentByPatient = await listRecentMeasuredAts([data.id]);
-  return toPatientListItem(data, recentByPatient.get(data.id) ?? []);
+  const [patient] = await toPatientListItems([data]);
+  return patient ?? null;
 }
 
 const SCHEDULE_COLUMNS =

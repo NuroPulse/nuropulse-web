@@ -59,10 +59,16 @@ export function useMeasurementHistory(patientId: string, page: number) {
   });
 }
 
+// Flags and compliance change as time passes (a dose becomes "missed", the 7-day window moves),
+// not only when data arrives, so open pages recompute them on this interval.
+const DERIVED_REFRESH_MS = 60_000;
+
+// Shared by the patient list and the Dashboard overview, so both read the same numbers.
 export function useMyPatients() {
   return useQuery<PatientListItem[], PatientFailure>({
     queryKey: patientQueryKeys.list(),
     queryFn: listMyPatients,
+    refetchInterval: DERIVED_REFRESH_MS,
   });
 }
 
@@ -70,6 +76,7 @@ export function usePatient(patientId: string) {
   return useQuery<PatientListItem | null, PatientFailure>({
     queryKey: patientQueryKeys.detail(patientId),
     queryFn: () => getPatient(patientId),
+    refetchInterval: DERIVED_REFRESH_MS,
   });
 }
 
@@ -87,9 +94,15 @@ export function useMedicationLogs(patientId: string) {
   });
 }
 
+// A schedule change can change the patient's medication compliance and flag too.
 function useInvalidateSchedules(patientId: string) {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: patientQueryKeys.schedules(patientId) });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.schedules(patientId) }),
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.detail(patientId) }),
+      queryClient.invalidateQueries({ queryKey: patientQueryKeys.list() }),
+    ]);
 }
 
 export function useAddSchedule(patientId: string) {

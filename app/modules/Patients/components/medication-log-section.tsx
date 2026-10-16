@@ -5,13 +5,7 @@ import { TablePagination } from "~/components/elements/table-pagination";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatDayMonthTime, formatTimeOnly } from "~/lib/date";
-import {
-  deriveDoses,
-  medicationComplianceRatio,
-  toLocalDateKey,
-  type DoseStatus,
-  type ScheduleForDoses,
-} from "~/lib/medication";
+import { deriveDoses, getMedicationCompliance, toHistorySchedules, type DoseStatus } from "~/lib/medication";
 import { formatPercent } from "~/lib/number";
 import { getComplianceBucket, type ComplianceBucket } from "~/lib/patient-status";
 import { cn } from "~/lib/utils";
@@ -49,32 +43,17 @@ export function MedicationLogSection({ patientId, now }: MedicationLogSectionPro
   const schedules = schedulesQuery.data ?? noSchedules;
   const logs = logsQuery.data ?? noLogs;
 
-  // A stopped schedule has no doses from now on, but its past doses still belong in the
-  // history: count it as running until the day it was stopped (updated_at).
-  const historySchedules = useMemo<ScheduleForDoses[]>(
-    () =>
-      schedules.map((schedule) => {
-        if (schedule.isActive) return schedule;
-        const stoppedOn = toLocalDateKey(new Date(schedule.updatedAt));
-        const endDate = schedule.endDate && schedule.endDate < stoppedOn ? schedule.endDate : stoppedOn;
-        return { ...schedule, isActive: true, endDate };
-      }),
-    [schedules],
-  );
+  // Stopped schedules still count for the days before they were stopped.
+  const historySchedules = useMemo(() => toHistorySchedules(schedules), [schedules]);
 
   const entries = useMemo(
     () => deriveDoses(historySchedules, logs, new Date(now.getTime() - range * DAY_MS), now),
     [historySchedules, logs, now, range],
   );
 
-  // The summary always covers the last 7 days, whatever range the table shows.
-  const weekCompliance = useMemo(
-    () =>
-      medicationComplianceRatio(
-        deriveDoses(historySchedules, logs, new Date(now.getTime() - 7 * DAY_MS), now),
-      ),
-    [historySchedules, logs, now],
-  );
+  // The summary always covers the last 7 days, whatever range the table shows; the same helper
+  // feeds the patient list and the medication flag, so the numbers match everywhere.
+  const weekCompliance = useMemo(() => getMedicationCompliance(schedules, logs, now), [schedules, logs, now]);
   const weekBucket = getComplianceBucket(weekCompliance);
 
   const medicineBySchedule = new Map(schedules.map((schedule) => [schedule.id, schedule.medicineName]));

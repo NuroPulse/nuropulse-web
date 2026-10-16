@@ -6,26 +6,30 @@ import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatDateTime, formatFullDate } from "~/lib/date";
 import { ACTIVE_WITHIN_DAYS, INACTIVE_AFTER_DAYS, getActivityStatus } from "~/lib/patient-status";
-import { buildSamplePatients } from "~/lib/sample-data";
 import { useCurrentAccount } from "~/modules/Auth";
+import { useMyPatients, type PatientListItem } from "~/modules/Patients";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const noPatients: PatientListItem[] = [];
 
 export function OverviewPage() {
   const account = useCurrentAccount();
   // Fixed for the visit so the numbers do not shift while the doctor reads them.
   const [now] = useState(() => new Date());
+  // The same query (and cache) as Daftar Pasien, so the counts match.
+  const query = useMyPatients();
 
   const patients = useMemo(
     () =>
-      buildSamplePatients(now).map((patient) => ({
+      (query.data ?? noPatients).map((patient) => ({
         ...patient,
         status: getActivityStatus(patient, now),
       })),
-    [now],
+    [query.data, now],
   );
 
-  // Flags come from the data (the backend's patient_flags view); never recomputed here.
+  // Flags come with the patient list (computed in the Patients data layer); never recomputed here.
   const flagged = useMemo(
     () =>
       patients
@@ -63,15 +67,42 @@ export function OverviewPage() {
         Hai, dr. {" "}
         {doctorName ?? (account.isPending ? <Skeleton className="h-8 w-40" /> : "Dokter")}
       </h1>
-      <p className="mt-1 text-b8 text-ink-muted">
-        {patients.length === 0
-          ? "Belum ada pasien yang terhubung dengan Anda."
-          : flagged.length > 0
-            ? `Ada ${flagged.length} pasien perlu ditinjau.`
-            : "Tidak ada yang perlu ditinjau."}
-      </p>
+      {query.isPending ? (
+        <Skeleton className="mt-2 h-5 w-64" />
+      ) : query.isError ? null : (
+        <p className="mt-1 text-b8 text-ink-muted">
+          {patients.length === 0
+            ? "Belum ada pasien yang terhubung dengan Anda."
+            : flagged.length > 0
+              ? `Ada ${flagged.length} pasien perlu ditinjau.`
+              : "Tidak ada yang perlu ditinjau."}
+        </p>
+      )}
 
-      {patients.length === 0 ? (
+      {query.isPending ? (
+        <div aria-busy="true" className="mt-6 grid gap-6 lg:grid-cols-3">
+          <span className="sr-only">Memuat…</span>
+          <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
+          <div className="flex flex-col gap-6">
+            <Skeleton className="h-60 rounded-2xl" />
+            <Skeleton className="h-30 rounded-2xl" />
+          </div>
+        </div>
+      ) : query.isError ? (
+        <div
+          role="alert"
+          className="mt-6 flex flex-col items-start gap-4 rounded-2xl border border-line bg-surface-raised p-6"
+        >
+          <p className="text-b8 text-ink">
+            {query.error.code === "network"
+              ? "Tidak ada koneksi internet. Coba lagi."
+              : "Terjadi kesalahan. Silakan coba lagi."}
+          </p>
+          <Button type="button" variant="outline" onClick={() => query.refetch()} className="h-10 px-4 text-sh8">
+            Coba lagi
+          </Button>
+        </div>
+      ) : patients.length === 0 ? (
         // A doctor with no connected patient yet: the useful next step is sharing the
         // connection code, which is shown on the Profile page only.
         <section

@@ -7,6 +7,7 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
+    "test": "vitest run",
     "gen:types": "npx --yes supabase gen types typescript --project-id cqfljtrxruipzoqofkqd > app/lib/database.types.ts"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "shadcn": "^4.21.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vite": "^8.0.3"
+    "vite": "^8.0.3",
+    "vitest": "^5.0.5"
   }
 }
