@@ -1,6 +1,7 @@
-import { ChevronDown, Clock, Plus, X } from "lucide-react";
+import { ChevronDown, CircleAlert, Clock, Loader2, Plus, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -23,6 +24,8 @@ import {
   type TimesError,
 } from "~/lib/medication";
 import { useMedicines } from "~/modules/Medicines";
+import { useAddSchedule } from "../hooks";
+import { scheduleErrorText } from "../schedule-error-text";
 import type { NewScheduleInput } from "../types";
 
 const TEXT_MAX = 1000;
@@ -65,24 +68,28 @@ function validate(values: NewScheduleInput): FieldErrors {
 type AddScheduleDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  patientId: string;
   patientName: string;
-  onSubmit: (input: NewScheduleInput, medicineName: string) => void;
 };
 
 const fieldClassName = "px-3 text-b7 md:text-b7";
 
-export function AddScheduleDialog({ open, onOpenChange, patientName, onSubmit }: AddScheduleDialogProps) {
+export function AddScheduleDialog({ open, onOpenChange, patientId, patientName }: AddScheduleDialogProps) {
   const [values, setValues] = useState<NewScheduleInput>(emptyValues);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [newTime, setNewTime] = useState("");
-  // The shared medicine catalog; its first page is enough while the data is sample data.
+  // TODO: the shared catalog's first page only (20 medicines); add search when it grows.
   const medicines = useMedicines({ search: "", page: 1 });
+  const addSchedule = useAddSchedule(patientId);
 
   function handleOpenChange(nextOpen: boolean) {
+    // Keep the dialog open while saving so the result is not lost.
+    if (!nextOpen && addSchedule.isPending) return;
     if (!nextOpen) {
       setValues(emptyValues());
       setErrors({});
       setNewTime("");
+      addSchedule.reset();
     }
     onOpenChange(nextOpen);
   }
@@ -119,17 +126,15 @@ export function AddScheduleDialog({ open, onOpenChange, patientName, onSubmit }:
     const nextErrors = validate(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    const medicineName =
-      medicines.data?.items.find((medicine) => medicine.id === values.medicineId)?.name ?? "";
-    onSubmit(
-      {
-        ...values,
-        dose: values.dose.trim(),
-        instructions: values.instructions.trim(),
+    addSchedule.mutate(values, {
+      onSuccess: () => {
+        toast.success("Jadwal ditambahkan.");
+        setValues(emptyValues());
+        setNewTime("");
+        addSchedule.reset();
+        onOpenChange(false);
       },
-      medicineName,
-    );
-    handleOpenChange(false);
+    });
   }
 
   return (
@@ -141,6 +146,16 @@ export function AddScheduleDialog({ open, onOpenChange, patientName, onSubmit }:
         </DialogHeader>
 
         <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
+          {addSchedule.error && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-danger bg-danger-soft p-3"
+            >
+              <CircleAlert aria-hidden="true" className="mt-0.5 size-4.5 shrink-0 text-danger" />
+              <p className="text-b8 text-danger">{scheduleErrorText(addSchedule.error.code)}</p>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="schedule-medicine" className="text-sh8 text-ink">
               Obat
@@ -323,11 +338,22 @@ export function AddScheduleDialog({ open, onOpenChange, patientName, onSubmit }:
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <DialogClose asChild>
-              <Button type="button" variant="outline" className="h-11 px-5 text-sh8">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={addSchedule.isPending}
+                className="h-11 px-5 text-sh8"
+              >
                 Batal
               </Button>
             </DialogClose>
-            <Button type="submit" className="h-11 px-5 text-sh8">
+            <Button
+              type="submit"
+              disabled={addSchedule.isPending}
+              aria-busy={addSchedule.isPending}
+              className="h-11 gap-2 px-5 text-sh8"
+            >
+              {addSchedule.isPending && <Loader2 aria-hidden="true" className="size-4.5 animate-spin" />}
               Simpan Jadwal
             </Button>
           </div>

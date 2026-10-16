@@ -2,12 +2,17 @@
 
 Guidance for Claude Code (and any contributor) working in this repository. Read this fully before writing code. When a decision here changes, update this file in the same change.
 
-Status: draft v0.2 (2026-10-15).
+Status: draft v0.3 (2026-10-16).
 
 ### Changelog
 
+- **v0.3 (2026-10-16)**
+  - Flags and both compliance measures are computed on the web when the data is read, from the backend's measurement `status` and the medication log; nothing is stored (Section 10). Helpers in `lib/patient-status.ts` and `lib/medication.ts`.
+  - Patient lists are filtered and paginated in the browser after loading the doctor's patients, because flags and compliance are not in the database (Section 9).
+  - The Patients module exports `useMyPatients`, shared by Daftar Pasien and the Dashboard overview (Section 6). The overview reads Supabase; `lib/sample-data.ts` is no longer used but kept.
+  - Vitest is installed; `npm test` runs the helper tests (Sections 5, 13).
 - **v0.2 (2026-10-15)**
-  - Doctor sign-up now asks for a phone number (WhatsApp), sent as `phone_number` in the sign-up metadata; `phone_number` is required for patients and doctors (Sections 2, 3, 4, 9, 10).
+  - Doctor sign-up now asks for a phone number (WhatsApp), sent as `phone` in the sign-up metadata; `phone` is required for patients and doctors (Sections 2, 3, 4, 9, 10).
   - New "Visual style" subsection in Section 7: follow the mobile app (light surfaces, cards, sparing blue, green accents, status boxes, shared decorations).
   - Section 8: wording for sign-up, login, the sidebar, and the Profile page; the connection code card is titled "Kode koneksi Anda".
   - Section 13: `npm run gen:types` to regenerate the Supabase types.
@@ -102,7 +107,7 @@ Supabase tables (decided): `profiles`, `measurements`, `medicines`, `medication_
 | `id` | uuid | Same as the Supabase auth user id |
 | `role` | text | `patient` or `doctor`. Web never writes it. |
 | `full_name` | text | Patient name shown to the doctor. For the signed-in doctor, the name on the Profile page (read-only). Entered at sign-up. |
-| `phone_number` | text | **Patients and doctors, required.** International format, for example `+6281234567890`; for doctors, their WhatsApp number. Patients enter it at registration in the mobile app; doctors enter it on the web sign-up form, and the backend trigger copies it from the sign-up metadata. The web never writes it directly. **Decided but not yet in the contract, and not yet in `database.types.ts`: the backend still has to add the column.** |
+| `phone` | text | **Patients and doctors, required.** International format, for example `+6281234567890`; for doctors, their WhatsApp number. Patients enter it at registration in the mobile app; doctors enter it on the web sign-up form, and the backend trigger copies it from the sign-up metadata. The web never writes it directly. **Decided but not yet in the contract, and not yet in `database.types.ts`: the backend still has to add the column.** |
 | `doctor_id` | uuid, nullable | **Patients.** The connected doctor. Set when the patient enters a connection code. Decided; not yet in the contract. |
 | `connected_at` | timestamptz, nullable | **Patients.** When the patient connected to the current doctor. Decided; not yet in the contract. |
 | `connection_code` | text, unique | Doctors only. 8 characters (the contract says "proposed"), generated automatically when the doctor account is created. The web shows the signed-in doctor's own code **on the Profile page**, read-only. |
@@ -225,7 +230,7 @@ Backend error codes (English identifiers; the UI maps them to Indonesian text): 
 | Data fetching | TanStack Query (`@tanstack/react-query`) on top of `@supabase/supabase-js`. One `QueryClient` in `app/lib/query-client.ts` (`staleTime` 30 s, `retry` 1), provided in `app/root.tsx`; Supabase client in `app/lib/supabase.ts`. Each feature keeps its query keys and hooks in its `api.ts`; after a write, invalidate the related keys. Devtools (`@tanstack/react-query-devtools`) are a dev dependency, development only. |
 | Data fetching | TanStack Query (`@tanstack/react-query`). One `QueryClient` in `app/lib/query-client.ts` (`staleTime` 30 s, `retry` 1), provided in `app/root.tsx`. Devtools (`@tanstack/react-query-devtools`) are a dev dependency. Supabase client in `app/lib/supabase.ts`. |
 | Charts | shadcn/ui charts (built on Recharts). |
-| Testing | Vitest, for helpers only (activity status, compliance, schedule rules, mappers). No component tests in the MVP. |
+| Testing | Vitest (5.0.5, dev dependency), for helpers only (activity status, flags, compliance, schedule rules, mappers). Config in `vitest.config.ts`, separate from `vite.config.ts` so the React Router plugin does not run in tests. Test files sit next to the helper: `app/**/*.test.ts`. No component tests in the MVP. |
 | Deploy | Static hosting on Vercel or Netlify, with an SPA fallback so every route serves `index.html` (opening a deep link such as a patient page must not return 404). |
 | Config | `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon or publishable key only) in `.env`, git-ignored. `.env.example` lists the names without values. |
 | Package manager | npm |
@@ -310,7 +315,7 @@ All doctor routes sit under one layout route, `routes/app-layout.tsx`, which hol
 
 - **Components** contain layout and event forwarding only. Fetching, mapping, and status logic live in hooks or data functions, not in JSX.
 - **Data access** (Supabase calls) lives only in a feature's `api.ts`, wrapped in TanStack Query hooks. The Supabase client itself lives in `lib/supabase.ts`. Components never call Supabase directly.
-- A module may import another module's exported page or types only. Never reach into another module's internals; shared logic goes to `lib/`.
+- A module may import another module's exported page or types only. Never reach into another module's internals; shared logic goes to `lib/`. One exception: `Patients` exports `useMyPatients`, so the Dashboard overview shares the patient list query (and its cache) with Daftar Pasien and the counts always match.
 - `lib/` and `components/` never import from `modules/`.
 - Raw rows from Supabase are mapped to frontend types in `api.ts`. Do not pass raw `snake_case` rows into components.
 - Do not duplicate the status mapping (Section 8); define it once in `lib/patient-status.ts` and reuse it.
@@ -559,7 +564,7 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
 - A change to a schedule's medicine, dose, or times is two writes: stop the old schedule, create a new one. Do it so a failure of the second write is visible to the doctor (do not leave a patient silently without a schedule).
 - A doctor may create schedules only for patients connected to them. The backend enforces it through RLS; the UI only lists connected patients.
 - Medication data is shown only for the doctor's own patients and never mixed across patients.
-- Pagination and filtering happen in the query (server side), not by loading everything. Patient lists: **20 per page**, most recent measurement first. Trend graphs open on the **30 Hari** range.
+- Pagination and filtering happen in the query (server side), not by loading everything, with one exception: the patient list loads all of the doctor's patients and filters and paginates in the browser, because flags and compliance are computed on the web (Section 10). Its data comes from batch queries over all patient ids (patients, 7 days of measurements and logs, schedules), never one query per patient. Revisit if a doctor reaches several hundred patients. Patient lists: **20 per page**, most recent measurement first. Trend graphs open on the **30 Hari** range.
 - Session handling follows `@supabase/supabase-js` defaults. Route protection reads the session and the profile `role` in one place (`routes/app-layout.tsx`, using helpers from the `Auth` module); do not scatter session checks through components.
 - Never display `uploaded_at` ordering as measurement ordering: order by `measured_at`.
 - Mobile never uploads `invalid` checks, so the web has nothing to hide. The mapper still skips any row without `features` (defensive).
@@ -588,7 +593,7 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
 - **Flag ("Perlu ditinjau") (decided).** A patient is flagged when **at least one** of these is true:
   - "Pola tremor terdeteksi" in **3 of the last 5 measurements** within the last 7 days.
   - **Kepatuhan obat** is **Rendah** (< 50%) over the last 7 days (formula in the compliance filter below).
-  - The backend computes flags in a database view, `patient_flags`, so the Overview, the patient list, and filters can query them with server-side pagination. The web only reads the view; it never computes flags itself.
+  - The web computes flags when the data is read (`getPatientFlag` in `lib/patient-status.ts`), so a flag follows new data and the passing of time with nothing stored. It only counts the backend's measurement `status`; it never looks at `features` or the DSP thresholds. The Patients data layer computes it once per load, and the Overview, the patient list, the filters, and Patient detail all read that result. Open pages refetch every 60 seconds. When both conditions hold, the tremor reason is shown. The `patient_details.flag` column is not used.
   - Every flag shows its **reason** in plain data terms, using the wording in Section 8. The flag never says what is wrong with the patient.
   - A flag disappears on its own when its condition is no longer true. There is no "mark as reviewed" action and no stored flag state.
   - Badge style: `bg-warning-soft text-warning` with an icon and the text "Perlu ditinjau". Warning (amber) draws attention without signalling danger; never use `danger` for a flag.
@@ -598,12 +603,12 @@ The sign-up, status, and medication strings above are proposed wording; confirm 
   - **Right, "Ringkasan":** Pasien terhubung, Aktif (5 hari terakhir), Belum check-in, Perlu ditinjau, as plain numbers without coloured icons, then the link "Lihat Daftar Pasien".
   - **Right, "Belum check-in":** "Tidak ada pengukuran 5–13 hari", then every such patient (longest without a measurement first) with "{n} hari", in a list about three rows tall that scrolls. Each name links to the patient.
   - Colour only in the "Perlu ditinjau" block; Ringkasan and Belum check-in stay neutral. Activity status comes from the shared helper in `lib/patient-status.ts`; flags are read from the data, never recomputed.
-  - Until the backend is connected, the numbers come from the temporary `lib/sample-data.ts`, shared with the patient pages so the counts match.
+  - The numbers come from the same query as Daftar Pasien (`useMyPatients`), so the counts match.
 - **Compliance filter ("Filter Kepatuhan").** Filters the patient list by one of two measures, both over the **last 7 days**:
   - **Kepatuhan obat** = doses marked taken ÷ scheduled doses whose time has passed (a dose counts once it is missed or logged).
   - **Kepatuhan check-in** = days with at least one measurement ÷ 7.
   - Buckets: **Baik** ≥ 80%, **Sedang** 50–79%, **Rendah** < 50%. Patients with no scheduled dose in the window have no medication bucket.
-  - These are display filters, not clinical judgements. One helper computes them; reuse it.
+  - These are display filters, not clinical judgements. One helper computes each, and every page reuses it: `getMedicationCompliance` in `lib/medication.ts` (also used by the medication flag and the Patient detail summary), and `getCheckInCompliance` in `lib/patient-status.ts`. "Missed" is judged against the doctor's browser clock, since schedule times carry no time zone.
 - **Patient detail.** One page per patient, reached from the patient list:
   - Header: name, phone number, activity status, last active, flag if any. No other personal fields.
   - **Medication.** Active schedules (medicine, dose per intake, times, start and end date, instructions) with buttons to add, edit the allowed fields, and stop a schedule.
@@ -647,13 +652,13 @@ npm run dev          # development server
 npm run typecheck    # react-router typegen && tsc
 npm run build        # SPA build: static files to deploy
 npm run gen:types    # regenerate app/lib/database.types.ts from the Supabase project
+npm test             # Vitest: unit tests for the lib/ helpers
 ```
 
 - `gen:types` needs a one-time `npx supabase login`. Run it from `npm run` (not a raw PowerShell `>` redirect, which writes UTF-16). Regenerate whenever the backend changes the schema, then run `npm run typecheck` to find code that no longer matches.
 
 - `npm run start` (`react-router-serve`) comes from the SSR template and is not used in SPA mode. `@react-router/node`, `@react-router/serve`, and that script can be removed once the SPA build is confirmed.
 - After the first SPA build, record here the output folder to deploy (expected `build/client`).
-- Vitest is decided but not installed yet; add a `test` script when it is.
 
 ---
 
@@ -665,5 +670,5 @@ npm run gen:types    # regenerate app/lib/database.types.ts from the Supabase pr
 - Never write result text that implies a diagnosis (Sections 2 and 8).
 - Keep `.agents/skills/` unedited; read the React Router skill before routing work.
 - UI strings in Bahasa Indonesia; everything developer-facing in English.
-- Run type-check, build, and tests (once Vitest exists) before reporting work as done, and state what you ran.
+- Run type-check, build, and tests (`npm test`) before reporting work as done, and state what you ran.
 - Commit messages: English, imperative mood, one logical change per commit.

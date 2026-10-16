@@ -1,6 +1,8 @@
 // Shared medication schedule rules (CLAUDE.md Section 4, "Medication models", and Section 10).
 // Pure functions: "now" is passed in so the 2-hour missed rule can be unit-tested.
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export const MAX_TIMES_PER_DAY = 8;
 // A scheduled dose with no log this long after its time is shown as missed ("Terlewat").
 export const MISSED_AFTER_MS = 2 * 60 * 60 * 1000;
@@ -99,6 +101,35 @@ export function medicationComplianceRatio(entries: DoseEntry[]): number | null {
   const counted = entries.filter((entry) => entry.status !== "pending");
   if (counted.length === 0) return null;
   return counted.filter((entry) => entry.status === "taken").length / counted.length;
+}
+
+// Window of Kepatuhan obat and of the medication flag (CLAUDE.md Section 10).
+export const MEDICATION_COMPLIANCE_WINDOW_DAYS = 7;
+
+export type ScheduleWithHistory = ScheduleForDoses & {
+  // Backend-set; for a stopped schedule this is when it was stopped.
+  updatedAt: string;
+};
+
+// A stopped schedule has no doses from now on, but its past doses still belong in the history:
+// count it as running until the day it was stopped (updated_at).
+export function toHistorySchedules(schedules: ScheduleWithHistory[]): ScheduleForDoses[] {
+  return schedules.map((schedule) => {
+    if (schedule.isActive) return schedule;
+    const stoppedOn = toLocalDateKey(new Date(schedule.updatedAt));
+    const endDate = schedule.endDate && schedule.endDate < stoppedOn ? schedule.endDate : stoppedOn;
+    return { ...schedule, isActive: true, endDate };
+  });
+}
+
+// Kepatuhan obat over the last 7 days. null: no scheduled dose has come due in the window.
+export function getMedicationCompliance(
+  schedules: ScheduleWithHistory[],
+  logs: DoseLog[],
+  now: Date,
+): number | null {
+  const from = new Date(now.getTime() - MEDICATION_COMPLIANCE_WINDOW_DAYS * DAY_MS);
+  return medicationComplianceRatio(deriveDoses(toHistorySchedules(schedules), logs, from, now));
 }
 
 export type TimesError = "required" | "too_many" | "invalid" | "duplicate";

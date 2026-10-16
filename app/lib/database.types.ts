@@ -282,7 +282,7 @@ export type Database = {
           medicine_id: string
           patient_id: string
           start_date: string
-          times: string
+          times: string[]
           updated_at: string
         }
         Insert: {
@@ -296,7 +296,7 @@ export type Database = {
           medicine_id?: string
           patient_id?: string
           start_date: string
-          times: string
+          times: string[]
           updated_at: string
         }
         Update: {
@@ -310,7 +310,7 @@ export type Database = {
           medicine_id?: string
           patient_id?: string
           start_date?: string
-          times?: string
+          times?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -342,6 +342,7 @@ export type Database = {
           common_dosage: string
           created_at: string
           created_by: string | null
+          created_by_name?: string | null
           id: string
           name: string
           notes: string | null
@@ -351,6 +352,7 @@ export type Database = {
           common_dosage: string
           created_at?: string
           created_by?: string | null
+          created_by_name?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -360,6 +362,7 @@ export type Database = {
           common_dosage?: string
           created_at?: string
           created_by?: string | null
+          created_by_name?: string | null
           id?: string
           name?: string
           notes?: string | null
@@ -446,29 +449,35 @@ export type Database = {
       }
       patient_details: {
         Row: {
-          date_of_birth: string | null
-          diagnosis: string | null
+          connected_at: string | null
+          doctor_id: string | null
           email: string | null
-          gender: string | null
+          flag: Json | null
+          full_name: string | null
           id: string
+          last_measured_at: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
-          date_of_birth?: string | null
-          diagnosis?: string | null
+          connected_at?: string | null
+          doctor_id?: string | null
           email?: string | null
-          gender?: string | null
+          flag?: Json | null
+          full_name?: string | null
           id: string
+          last_measured_at?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
-          date_of_birth?: string | null
-          diagnosis?: string | null
+          connected_at?: string | null
+          doctor_id?: string | null
           email?: string | null
-          gender?: string | null
+          flag?: Json | null
+          full_name?: string | null
           id?: string
+          last_measured_at?: string | null
           phone?: string | null
           updated_at?: string
         }

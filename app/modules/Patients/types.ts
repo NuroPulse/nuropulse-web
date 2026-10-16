@@ -9,8 +9,8 @@ export type PatientFlag = {
 export type PatientListItem = {
   id: string;
   fullName: string;
-  // International format, for example "+6281234567890".
-  phone: string;
+  // International format, for example "+6281234567890". null when the backend has none.
+  phone: string | null;
   connectedAt: string | null;
   // Most recent valid measurement (measured_at), or null if the patient never measured.
   lastMeasuredAt: string | null;
@@ -20,6 +20,26 @@ export type PatientListItem = {
   // Days with at least one measurement in the last 7 days ÷ 7.
   checkInCompliance: number;
 };
+
+// The schedule codes come from the contract (CLAUDE.md Section 4); RLS cannot tell
+// patient_not_connected from forbidden, so both arrive as "forbidden".
+export type PatientErrorCode =
+  | "network"
+  | "forbidden"
+  | "schedule_invalid_times"
+  | "schedule_invalid_range"
+  | "unknown";
+
+// Typed error thrown by api.ts; the UI maps `code` to Indonesian text.
+export class PatientFailure extends Error {
+  readonly code: PatientErrorCode;
+
+  constructor(code: PatientErrorCode) {
+    super(code);
+    this.name = "PatientFailure";
+    this.code = code;
+  }
+}
 
 // Measurement (CLAUDE.md Section 4), mapped to camelCase. Only valid rest measurements reach
 // the web; a row without status or features is skipped by the mapper.
@@ -32,11 +52,12 @@ export type MeasurementFeatures = {
   consistency: number;
 };
 
+// device is free JSON in the database, so every key may be missing.
 export type MeasurementDevice = {
-  model: string;
-  os: "android" | "ios";
-  appVersion: string;
-  effectiveSamplingHz: number;
+  model: string | null;
+  os: "android" | "ios" | null;
+  appVersion: string | null;
+  effectiveSamplingHz: number | null;
 };
 
 export type Measurement = {
@@ -75,6 +96,17 @@ export type MedicationLog = {
   status: "taken" | "skipped";
   takenAt: string | null;
   loggedAt: string;
+};
+
+export type MeasurementPage = {
+  items: Measurement[];
+  total: number;
+};
+
+// The only fields that may change in place (CLAUDE.md Section 4).
+export type ScheduleChanges = {
+  endDate: string | null;
+  instructions: string | null;
 };
 
 export type NewScheduleInput = {

@@ -2,17 +2,14 @@ import { CircleCheck, CircleMinus, CircleX, Clock, type LucideIcon } from "lucid
 import { useMemo, useState } from "react";
 
 import { TablePagination } from "~/components/elements/table-pagination";
+import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 import { formatDayMonthTime, formatTimeOnly } from "~/lib/date";
-import {
-  deriveDoses,
-  medicationComplianceRatio,
-  toLocalDateKey,
-  type DoseStatus,
-  type ScheduleForDoses,
-} from "~/lib/medication";
+import { deriveDoses, getMedicationCompliance, toHistorySchedules, type DoseStatus } from "~/lib/medication";
 import { formatPercent } from "~/lib/number";
 import { getComplianceBucket, type ComplianceBucket } from "~/lib/patient-status";
 import { cn } from "~/lib/utils";
+import { useMedicationLogs, useSchedules } from "../hooks";
 import type { MedicationLog, MedicationSchedule } from "../types";
 
 const PAGE_SIZE = 10;
@@ -30,46 +27,46 @@ const doseStatusStyles: Record<DoseStatus, { label: string; icon: LucideIcon; cl
 const bucketLabels: Record<ComplianceBucket, string> = { good: "Baik", fair: "Sedang", low: "Rendah" };
 
 type MedicationLogSectionProps = {
-  // All schedules, so past doses keep their medicine name.
-  schedules: MedicationSchedule[];
-  logs: MedicationLog[];
+  patientId: string;
   now: Date;
 };
 
-export function MedicationLogSection({ schedules, logs, now }: MedicationLogSectionProps) {
+const noSchedules: MedicationSchedule[] = [];
+const noLogs: MedicationLog[] = [];
+
+export function MedicationLogSection({ patientId, now }: MedicationLogSectionProps) {
   const [range, setRange] = useState<LogRange>(7);
   const [page, setPage] = useState(1);
+  // All schedules, stopped ones included, so past doses keep their medicine name.
+  const schedulesQuery = useSchedules(patientId);
+  const logsQuery = useMedicationLogs(patientId);
+  const schedules = schedulesQuery.data ?? noSchedules;
+  const logs = logsQuery.data ?? noLogs;
 
-  // A stopped schedule has no doses from now on, but its past doses still belong in the
-  // history: count it as running until the day it was stopped (updated_at).
-  const historySchedules = useMemo<ScheduleForDoses[]>(
-    () =>
-      schedules.map((schedule) => {
-        if (schedule.isActive) return schedule;
-        const stoppedOn = toLocalDateKey(new Date(schedule.updatedAt));
-        const endDate = schedule.endDate && schedule.endDate < stoppedOn ? schedule.endDate : stoppedOn;
-        return { ...schedule, isActive: true, endDate };
-      }),
-    [schedules],
-  );
+  // Stopped schedules still count for the days before they were stopped.
+  const historySchedules = useMemo(() => toHistorySchedules(schedules), [schedules]);
 
   const entries = useMemo(
     () => deriveDoses(historySchedules, logs, new Date(now.getTime() - range * DAY_MS), now),
     [historySchedules, logs, now, range],
   );
 
-  // The summary always covers the last 7 days, whatever range the table shows.
-  const weekCompliance = useMemo(
-    () =>
-      medicationComplianceRatio(
-        deriveDoses(historySchedules, logs, new Date(now.getTime() - 7 * DAY_MS), now),
-      ),
-    [historySchedules, logs, now],
-  );
+  // The summary always covers the last 7 days, whatever range the table shows; the same helper
+  // feeds the patient list and the medication flag, so the numbers match everywhere.
+  const weekCompliance = useMemo(() => getMedicationCompliance(schedules, logs, now), [schedules, logs, now]);
   const weekBucket = getComplianceBucket(weekCompliance);
 
   const medicineBySchedule = new Map(schedules.map((schedule) => [schedule.id, schedule.medicineName]));
   const pageRows = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Missed doses are derived from both, so nothing is shown until both have loaded.
+  const isPending = schedulesQuery.isPending || logsQuery.isPending;
+  const failure = schedulesQuery.error ?? logsQuery.error;
+
+  function retry() {
+    if (schedulesQuery.isError) schedulesQuery.refetch();
+    if (logsQuery.isError) logsQuery.refetch();
+  }
 
   return (
     <section
@@ -107,7 +104,25 @@ export function MedicationLogSection({ schedules, logs, now }: MedicationLogSect
         </div>
       </div>
 
-      {entries.length === 0 ? (
+      {isPending ? (
+        <div aria-busy="true" className="flex flex-col gap-3 px-6 pb-6">
+          <span className="sr-only">Memuat…</span>
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} className="h-10 w-full" />
+          ))}
+        </div>
+      ) : failure ? (
+        <div role="alert" className="flex flex-col items-start gap-3 px-6 pb-6">
+          <p className="text-b8 text-ink">
+            {failure.code === "network"
+              ? "Tidak ada koneksi internet. Coba lagi."
+              : "Terjadi kesalahan. Silakan coba lagi."}
+          </p>
+          <Button type="button" variant="outline" onClick={retry} className="h-10 px-4 text-sh8">
+            Coba lagi
+          </Button>
+        </div>
+      ) : entries.length === 0 ? (
         <p className="px-6 pb-6 text-b8 text-ink-muted">Belum ada dosis terjadwal dalam rentang ini.</p>
       ) : (
         <>
@@ -164,14 +179,16 @@ export function MedicationLogSection({ schedules, logs, now }: MedicationLogSect
         </>
       )}
 
-      <p className="border-t border-line px-6 py-3 text-b9 text-ink-muted">
-        Kepatuhan obat 7 hari terakhir:{" "}
-        <span className="text-sh9 text-ink">
-          {weekCompliance === null || !weekBucket
-            ? "belum ada dosis terjadwal"
-            : `${formatPercent(weekCompliance)} (${bucketLabels[weekBucket]})`}
-        </span>
-      </p>
+      {!isPending && !failure && (
+        <p className="border-t border-line px-6 py-3 text-b9 text-ink-muted">
+          Kepatuhan obat 7 hari terakhir:{" "}
+          <span className="text-sh9 text-ink">
+            {weekCompliance === null || !weekBucket
+              ? "belum ada dosis terjadwal"
+              : `${formatPercent(weekCompliance)} (${bucketLabels[weekBucket]})`}
+          </span>
+        </p>
+      )}
     </section>
   );
 }

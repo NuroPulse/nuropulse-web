@@ -1,3 +1,5 @@
+import { supabase } from "~/lib/supabase";
+import type { Tables } from "~/lib/database.types";
 import {
   MedicineFailure,
   type Medicine,
@@ -7,138 +9,133 @@ import {
   type NewMedicineInput,
 } from "./types";
 
-// TODO(backend): replace the in-memory sample data below with Supabase queries once the
-// backend fixes the medicines schema (see the report in the conversation). Keep these
-// function signatures so hooks.ts and the components do not change.
-
 export const MEDICINES_PAGE_SIZE = 20;
 
-// Sample data only. Names are fictional.
-const sampleMedicines: Medicine[] = [
-  {
-    id: "sample-levodopa",
-    name: "Levodopa/Karbidopa",
-    commonDosage: "Teks referensi dosis umum yang ditulis dokter saat menambahkan obat ini.",
-    notes: "Catatan dari dokter yang menambahkan.",
-    createdBy: "sample-doctor-vanka",
-    createdByName: "dr. Vanka",
-    createdAt: "2026-09-02T03:00:00Z",
-  },
-  {
-    id: "sample-pramipeksol",
-    name: "Pramipeksol",
-    commonDosage: "Teks referensi dosis umum",
-    notes: null,
-    createdBy: "sample-doctor-andi",
-    createdByName: "dr. Andi",
-    createdAt: "2026-09-03T03:00:00Z",
-  },
-  {
-    id: "sample-ropinirol",
-    name: "Ropinirol",
-    commonDosage: "Teks referensi dosis umum",
-    notes: "Catatan dari dokter yang menambahkan.",
-    createdBy: "sample-doctor-vanka",
-    createdByName: "dr. Vanka",
-    createdAt: "2026-09-04T03:00:00Z",
-  },
-  {
-    id: "sample-rasagilin",
-    name: "Rasagilin",
-    commonDosage: "Teks referensi dosis umum",
-    notes: null,
-    createdBy: "sample-doctor-tania",
-    createdByName: "dr. Tania",
-    createdAt: "2026-09-05T03:00:00Z",
-  },
-  {
-    id: "sample-amantadin",
-    name: "Amantadin",
-    commonDosage: "Teks referensi dosis umum",
-    notes: "Catatan dari dokter yang menambahkan.",
-    createdBy: "sample-doctor-zika",
-    createdByName: "dr. Zika",
-    createdAt: "2026-09-06T03:00:00Z",
-  },
-  {
-    id: "sample-triheksifenidil",
-    name: "Triheksifenidil",
-    commonDosage: "Teks referensi dosis umum",
-    notes: null,
-    createdBy: "sample-doctor-athaya",
-    createdByName: "dr. Athaya",
-    createdAt: "2026-09-07T03:00:00Z",
-  },
-];
+const MEDICINE_COLUMNS = "id, name, common_dosage, notes, created_by, created_by_name, created_at";
 
-const sampleUsage: Record<string, MedicineUsage[]> = {
-  "sample-levodopa": [
-    {
-      scheduleId: "sample-schedule-1",
-      patientId: "sample-patient-budi",
-      patientName: "Budi Santoso",
-      dose: "1 tablet",
-      times: ["07:00", "13:00", "19:00"],
-    },
-    {
-      scheduleId: "sample-schedule-2",
-      patientId: "sample-patient-dewi",
-      patientName: "Dewi Lestari",
-      dose: "1 tablet",
-      times: ["08:00", "20:00"],
-    },
-    {
-      scheduleId: "sample-schedule-3",
-      patientId: "sample-patient-rina",
-      patientName: "Rina Marlina",
-      dose: "½ tablet",
-      times: ["07:00"],
-    },
-  ],
-};
+type MedicineRow = Pick<
+  Tables<"medicines">,
+  "id" | "name" | "common_dosage" | "notes" | "created_by" | "created_by_name" | "created_at"
+>;
+
+function toMedicine(row: MedicineRow): Medicine {
+  return {
+    id: row.id,
+    name: row.name,
+    commonDosage: row.common_dosage,
+    notes: row.notes,
+    createdBy: row.created_by,
+    createdByName: row.created_by_name ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+// First word of the full name. Profile names never carry a title such as "dr.".
+export function getFirstName(fullName: string): string | null {
+  return fullName.trim().split(/\s+/)[0] || null;
+}
+
+// Escapes the LIKE wildcards so a search for "50%" matches literally.
+function escapeLikePattern(term: string): string {
+  return term.replace(/[\\%_]/g, "\\$&");
+}
 
 export async function listMedicines({ search, page }: MedicineListParams): Promise<MedicineListResult> {
-  const term = search.trim().toLowerCase();
-  const matches = sampleMedicines
-    .filter((medicine) => medicine.name.toLowerCase().includes(term))
-    .sort((a, b) => a.name.localeCompare(b.name, "id"));
+  const term = search.trim();
   const start = (page - 1) * MEDICINES_PAGE_SIZE;
-  return { items: matches.slice(start, start + MEDICINES_PAGE_SIZE), total: matches.length };
+
+  let query = supabase
+    .from("medicines")
+    .select(MEDICINE_COLUMNS, { count: "exact" })
+    .order("name", { ascending: true })
+    .range(start, start + MEDICINES_PAGE_SIZE - 1);
+  if (term) query = query.ilike("name", `%${escapeLikePattern(term)}%`);
+
+  const { data, error, count } = await query;
+  if (error) throw toMedicineFailure(error);
+  return { items: data.map(toMedicine), total: count ?? data.length };
 }
 
 export async function getMedicine(id: string): Promise<Medicine | null> {
-  return sampleMedicines.find((medicine) => medicine.id === id) ?? null;
+  const { data, error } = await supabase
+    .from("medicines")
+    .select(MEDICINE_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  // 22P02: the id in the URL is not a valid uuid, so no such medicine exists.
+  if (error?.code === "22P02") return null;
+  if (error) throw toMedicineFailure(error);
+  return data ? toMedicine(data) : null;
+}
+
+async function getSignedInDoctorId(): Promise<string> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw toMedicineFailure(error);
+  const doctorId = data.session?.user.id;
+  // The app layout guard only renders medicine pages for a signed-in doctor.
+  if (!doctorId) throw new MedicineFailure("unknown");
+  return doctorId;
 }
 
 // Active schedules of the signed-in doctor's own patients that use this medicine.
 export async function listMedicineUsage(medicineId: string): Promise<MedicineUsage[]> {
-  return sampleUsage[medicineId] ?? [];
+  const doctorId = await getSignedInDoctorId();
+
+  const { data, error } = await supabase
+    .from("medication_schedules")
+    .select("id, patient_id, dose, times, patient:patient_details(full_name)")
+    .eq("medicine_id", medicineId)
+    .eq("doctor_id", doctorId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+  // 22P02: the id in the URL is not a valid uuid, so nothing can use it.
+  if (error?.code === "22P02") return [];
+  if (error) throw toMedicineFailure(error);
+
+  return data.map((row) => ({
+    scheduleId: row.id,
+    patientId: row.patient_id,
+    // patient_id is a required foreign key, so the name is only missing if RLS hides the row.
+    patientName: row.patient?.full_name ?? "—",
+    dose: row.dose,
+    times: row.times,
+  }));
 }
 
 export async function addMedicine(input: NewMedicineInput): Promise<Medicine> {
-  const name = input.name.trim();
-  // Mirrors the database rule: names are unique ignoring case.
-  if (sampleMedicines.some((medicine) => medicine.name.toLowerCase() === name.toLowerCase())) {
-    throw new MedicineFailure("medicine_duplicate");
-  }
-  const medicine: Medicine = {
-    id: `sample-${Date.now()}`,
-    name,
-    commonDosage: input.commonDosage.trim(),
-    notes: input.notes.trim() || null,
-    createdBy: null,
-    createdByName: "Anda",
-    createdAt: new Date().toISOString(),
-  };
-  sampleMedicines.push(medicine);
-  return medicine;
+  const doctorId = await getSignedInDoctorId();
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", doctorId)
+    .maybeSingle();
+  if (profileError) throw toMedicineFailure(profileError);
+
+  // created_by is set by the backend; created_by_name is the label other doctors see.
+  const firstName = profile?.full_name ? getFirstName(profile.full_name) : null;
+  const { data, error } = await supabase
+    .from("medicines")
+    .insert({
+      name: input.name.trim(),
+      common_dosage: input.commonDosage.trim(),
+      notes: input.notes.trim() || null,
+      created_by_name: firstName ? `dr. ${firstName}` : null,
+    })
+    .select(MEDICINE_COLUMNS)
+    .single();
+  if (error) throw toMedicineFailure(error);
+  return toMedicine(data);
 }
 
-// Ready for the Supabase version (CLAUDE.md Section 4, "Backend error codes"):
-// Postgres codes come back from Supabase, not the contract names.
-export function toMedicineFailure(error: { code?: string } | null | undefined): MedicineFailure {
+// Postgres codes come back from Supabase, not the contract names
+// (CLAUDE.md Section 4, "Backend error codes").
+export function toMedicineFailure(error: unknown): MedicineFailure {
   if (typeof navigator !== "undefined" && !navigator.onLine) return new MedicineFailure("network");
-  switch (error?.code) {
+  // fetch() rejects with a TypeError when the network is unreachable.
+  if (error instanceof TypeError) return new MedicineFailure("network");
+  const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+  switch (code) {
     case "23505":
       return new MedicineFailure("medicine_duplicate");
     case "42501":
